@@ -5,7 +5,7 @@
 <h1 align="center">Soqucoin™ Core</h1>
 
 <p align="center">
-  <strong>A post-quantum Layer 1 with native ML-DSA-44 signatures. Running on stagenet, mainnet genesis in progress.</strong>
+  <strong>A post-quantum Layer 1 with native ML-DSA-44 signatures. Running on stagenet; mainnet block 1 is scheduled for 8 October 2026.</strong>
 </p>
 
 <p align="center">
@@ -40,10 +40,12 @@ Soqucoin is a Scrypt-based proof-of-work cryptocurrency that removes ECDSA from 
 | ASIC validation (L7) | ✅ Complete | Nov 24, 2025 |
 | Testnet3 launch | ✅ Complete | Dec 2025 |
 | Stability testing (1200+ blocks) | ✅ Complete | Jan 2, 2026 |
-| Halborn security audit (30 findings) | ✅ Complete | Feb–Mar 2026 |
-| Lattice-BP++ consensus wired | ✅ Complete | Apr 2026 |
-| SoquObscura CT (LNP22/LaBRADOR) | 🔄 In Progress | Jul 2026 |
-| Mainnet genesis | 🔄 In Progress | 2026 |
+| [Halborn security audit](https://www.halborn.com/case-studies/post/case-study-halborn-secures-soqucoin-the-first-native-post-quantum-scrypt-pow-blockchain) (30 findings) | ✅ Complete | Feb–Mar 2026 |
+| Lattice-BP++ consensus wired (superseded by SoquObscura; not activated) | ✅ Complete | Apr 2026 |
+| SoquObscura CT (LNP22/LaBRADOR) | ◻ Research | Not scheduled on any network |
+| Release v2.5.0 (stagenet) | ✅ Complete | Sep 2026 |
+| pSOQ to SOQ migration window | 🔄 Scheduled | Sep 29 – Oct 5, 2026 |
+| Mainnet block 1 | 🔄 Scheduled | Oct 8, 2026 |
 
 ---
 
@@ -56,7 +58,7 @@ Soqucoin is a Scrypt-based proof-of-work cryptocurrency that removes ECDSA from 
 | **Signatures** | ML-DSA-44 (Dilithium) | NIST Level 2 (128-bit quantum) |
 | **Address Hashing** | SHA-256 | 128-bit collision |
 | **Batch Verification** | PAT (Merkle-aggregated) | Constant-size proofs |
-| **Proof-of-Work** | Scrypt (N=1024, r=1, p=1) | Grover-resistant |
+| **Proof-of-Work** | Scrypt (N=1024, r=1, p=1) | Grover: quadratic speedup only |
 
 ### Confidential Transactions: SoquObscura (SOQ-P010)
 
@@ -87,7 +89,7 @@ Soqucoin is a Scrypt-based proof-of-work cryptocurrency that removes ECDSA from 
 ├─────────────────────────────────┼────────────────┼─────────────┤
 │ Dilithium Sign (M4)             │ 0.177 ms       │ 2,420 bytes │
 │ Dilithium Verify (M4)           │ 0.041 ms       │ —           │
-│ PAT root over 1000 sigs (M4)    │ 0.67 ms        │ 72 bytes    │
+│ PAT root over 1000 sigs (M4)    │ 0.67 ms        │ 100 bytes   │
 │ SoquObscura Range Prove (Xeon)  │ 61.8 ms        │ 17,991 B    │
 │ SoquObscura Range Verify (Xeon) │ 26.8 ms        │ —           │
 │ SoquObscura Balance Verify      │ 34.9 ms        │ 20,233 B    │
@@ -114,13 +116,13 @@ Soqucoin implements PAT to commit a batch of Dilithium signatures to a Merkle ro
 
 | Component | Status | File |
 |-----------|--------|------|
-| Proof Generation | ✅ Complete | `src/crypto/pat/logarithmic.cpp` |
-| Proof Verification | ✅ Complete | `CreateLogarithmicProof()` |
-| Simple Mode Verification | ✅ Production | `VerifyLogarithmicProof()` |
+| Proof Generation | ✅ Complete | `CreateLogarithmicProof()` in `src/crypto/pat/logarithmic.cpp` |
+| Proof Verification | ✅ Complete | `VerifyLogarithmicProof()` (proof, sibling path, tuples) |
+| Simple Mode Verification | ✅ Production | `VerifyLogarithmicProof()` (proof, agg_pk, msg_root) |
 | Full Mode Verification | ✅ Infrastructure Ready | Full witness validation |
 | Consensus Opcode | ✅ Active | `OP_CHECKPATAGG` (0xfd) |
-| Unit Tests | ✅ 17/17 Passing | `test/pat_tests.cpp` |
-| Integration Tests | ✅ Complete | `test/pat_script_tests.cpp` |
+| Unit Tests | ✅ 26/26 Passing | `src/test/pat_tests.cpp` |
+| Integration Tests | ✅ Complete | `src/test/pat_script_tests.cpp` |
 
 #### Verification Guarantees
 
@@ -150,9 +152,9 @@ Trust Model: Full cryptographic verification with witness data
 
 #### Documentation
 
-- **Wire Format**: [doc/pat-specification.md](doc/pat-specification.md)
+- **Wire Format**: [doc/specifications/pat-specification.md](doc/specifications/pat-specification.md)
 - **API Reference**: [src/crypto/pat/logarithmic.h](src/crypto/pat/logarithmic.h)
-- **Test Vectors**: [test/pat_tests.cpp](test/pat_tests.cpp)
+- **Test Vectors**: [src/test/pat_tests.cpp](src/test/pat_tests.cpp)
 
 ---
 
@@ -160,7 +162,7 @@ Trust Model: Full cryptographic verification with witness data
 
 ### Prerequisites
 
-- C++14 compiler (GCC 7+ or Clang 8+)
+- C++11 compiler (C++14 and C++17 builds via `--enable-c++14` or `--enable-c++17`)
 - Boost 1.60.0+
 - OpenSSL 1.1+
 - libevent 2.1+
@@ -182,7 +184,7 @@ make install  # optional
 # Stagenet (current active network)
 ./src/soqucoind -stagenet -daemon -server -rpcuser=soqucoin -rpcpassword=YOUR_PASSWORD
 
-# Mainnet (after genesis)
+# Mainnet (from block 1)
 ./src/soqucoind -daemon -server -rpcuser=soqucoin -rpcpassword=YOUR_PASSWORD
 
 # Regtest (local development)
@@ -225,7 +227,7 @@ cp config.example.json config.json && nano config.json
 | [INSTALL.md](INSTALL.md) | Build instructions for all platforms |
 | [doc/stagenet-mining-guide.md](doc/stagenet-mining-guide.md) | Stagenet mining & node setup |
 | [contrib/solo-miner/README.md](contrib/solo-miner/README.md) | Solo mining stratum proxy |
-| [doc/pat-specification.md](doc/pat-specification.md) | PAT wire format specification |
+| [doc/specifications/pat-specification.md](doc/specifications/pat-specification.md) | PAT wire format specification |
 | [Whitepaper](https://soqu.org/whitepaper/soqucoin_whitepaper.pdf) | Technical specification |
 
 ---
@@ -271,7 +273,7 @@ Note: Lattice-BP++ (SOQ-P002) is superseded by SoquObscura (SOQ-P010). LatticeFo
 | Branch | Purpose |
 |--------|---------|
 | `main` | Active development (default, protected) |
-| `release/v1.0.x` | Stable release branch (hotfixes only) |
+| `v2.x` tags | Releases (latest v2.5.0); the `release/v1.x` branches are historical |
 | `feature/*` | Feature branches (PR into main) |
 
 ---
@@ -293,7 +295,7 @@ Soqucoin Core is in **pre-genesis final validation**. The consensus stack has co
 ### Code Style
 
 This project follows [Bitcoin Core contribution guidelines](CONTRIBUTING.md):
-- C++14 standard (C++17 is optional, via `--enable-cxx17`)
+- C++11 by default (C++14 and C++17 via `--enable-c++14` and `--enable-c++17`)
 - 4-space indentation
 - No trailing whitespace
 - Signed commits required
@@ -311,9 +313,8 @@ This project follows [Bitcoin Core contribution guidelines](CONTRIBUTING.md):
 | **Halving Interval** | 250,000 blocks (~174 days) |
 | **Terminal Emission** | 2,500 SOQ perpetual (after block 1,000,000) |
 | **Supply Model** | Inflationary with declining rate |
-| **Premine** | 0 SOQ |
 
-**Fair Launch** — No premine, no ICO, no founder allocation, no treasury. 100% proof-of-work distribution.
+Block 1 of mainnet carries the result of the one-time pSOQ to SOQ migration window, open 29 September to 5 October 2026. The steps publish on 28 September at [soqucoin.org/migration](https://soqucoin.org/migration).
 
 ---
 
