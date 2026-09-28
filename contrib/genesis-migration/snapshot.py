@@ -697,7 +697,8 @@ def main():
             commitment_hash, excl_sha, provisional=args.provisional)
         # The record is readable by its owner alone: created 0600, and an
         # existing file is set to 0600 before a byte of this run is written.
-        # A directory the tool creates for it is 0700.
+        # The record's own directory is created 0700 when it does not exist;
+        # makedirs gives that mode to the last level only, not to parents.
         record_dir = os.path.dirname(os.path.abspath(args.screening_record))
         os.makedirs(record_dir, mode=0o700, exist_ok=True)
         fd = os.open(args.screening_record, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
