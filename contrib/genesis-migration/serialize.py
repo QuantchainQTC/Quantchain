@@ -31,6 +31,13 @@ UTXO_COST_PER_BYTE = 6500
 # carries the allocations is one transaction.
 MAX_MONEY = 20_000_000_000 * 100_000_000
 
+# The largest block subsidy at any height of any network: nInitialSubsidy in
+# the first epoch (GetSoqucoinBlockSubsidy, soqucoin.cpp), 500,000 SOQ on
+# regtest, where the dry run arms the allocation (chainparams.cpp). Mainnet's
+# is 100,000 SOQ. The same coinbase pays the miner, and CheckTransaction bounds
+# the sum of its outputs by MAX_MONEY, so the allocation leaves this much room.
+MAX_BLOCK_SUBSIDY = 500_000 * 100_000_000   # regtest's nInitialSubsidy
+
 # MAX_BLOCK_BASE_SIZE (consensus/consensus.h): the serialized size of a block
 # without witness data, enforced by CheckBlock ("bad-blk-length"). The
 # committed outputs are non-witness bytes of the block 1 coinbase, so their

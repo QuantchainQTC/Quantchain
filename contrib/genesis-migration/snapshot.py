@@ -34,7 +34,7 @@
 # allocation regardless of memo, so a project burn inside the window can never
 # allocate SOQ to the project. The file's sha256 is part of commitment.txt.
 # Every run, draft or final, refuses to start without the SDN screen input
-# (--sdn-addresses).
+# (--sdn-addresses) and the four published lists, each of which is a file.
 #
 # Legal exclusions: every legal exclusion publishes the ONE code `withheld`;
 # the ground (an SDN match, a listed authority, a listed destination, a
@@ -65,9 +65,10 @@ import urllib.error
 import urllib.request
 
 from bech32m import decode_v1_address
-from serialize import (MAX_ALLOCATION_OUTPUTS, MAX_MONEY, MAX_OUTPUTS_SERIALIZED_BYTES,
-                       hash_migration_outputs, is_block_commitment_shape,
-                       ser_txout_vector, utxo_cost_floor, v1_script)
+from serialize import (MAX_ALLOCATION_OUTPUTS, MAX_BLOCK_SUBSIDY, MAX_MONEY,
+                       MAX_OUTPUTS_SERIALIZED_BYTES, hash_migration_outputs,
+                       is_block_commitment_shape, ser_txout_vector, utxo_cost_floor,
+                       v1_script)
 
 RPC_RETRIES = 8
 RPC_BACKOFF_SECONDS = 1.0
@@ -369,13 +370,13 @@ def classify_tx(tx, mint, sdn_addresses, project_addresses=frozenset(),
 
 
 def load_address_file(path):
-    """One Solana address per line; '#' comments and blank lines ignored.
-    Used for both published exclusion inputs: the SDN digital-currency
-    addresses (built by sdn_extract.py) and the project-controlled
-    addresses. Each file's sha256 is recorded in commitment.txt so
-    the exact inputs are part of the published artifact set."""
-    if not path:
-        return set(), "none"
+    """One address per line; '#' comments and blank lines ignored. Used for
+    every published list: the SDN digital-currency addresses (built by
+    sdn_extract.py), the project-controlled addresses and destinations, and
+    the two legal lists. Each file's sha256 is recorded in commitment.txt so
+    the exact inputs are part of the published artifact set. Every list is a
+    file, and an empty list is a file with no address line: a missing or empty
+    path stops the run, never reads as an empty list."""
     with open(path, "rb") as f:
         raw = f.read()
     addresses = set()
@@ -523,9 +524,10 @@ def build_outputs(allocations):
                 "under an active UTXO_COST" % (address, sats, floor))
         outputs.append((sats, script))
     total = sum(sats for (sats, _) in outputs)
-    if total > MAX_MONEY:
-        raise SystemExit("aggregate allocation %d exceeds the per-tx "
-                         "MAX_MONEY bound %d" % (total, MAX_MONEY))
+    if total > MAX_MONEY - MAX_BLOCK_SUBSIDY:
+        raise SystemExit("aggregate allocation %d exceeds %d, the per-tx MAX_MONEY bound "
+                         "less the block subsidy the same coinbase pays"
+                         % (total, MAX_MONEY - MAX_BLOCK_SUBSIDY))
     size = len(ser_txout_vector(outputs))
     if size > MAX_OUTPUTS_SERIALIZED_BYTES:
         raise SystemExit("serialized output vector is %d bytes, over the %d-byte "
@@ -558,8 +560,7 @@ def build_screening_record(withheld, inputs, mint, window_open_slot, cutoff_slot
         "provisional": provisional,
         "hash_migration_outputs": commitment_hash,
         "exclusions_sha256": exclusions_sha256,
-        "inputs": {name: {"file": os.path.basename(path) if path else "none",
-                          "sha256": sha}
+        "inputs": {name: {"file": os.path.basename(path), "sha256": sha}
                    for name, (path, sha) in sorted(inputs.items())},
         "entries": withheld,
     }
@@ -589,10 +590,10 @@ def main():
     ap.add_argument("--project-addresses", required=True,
                     help="published file of project-controlled Solana addresses, "
                          "one per line; their burns never allocate")
-    ap.add_argument("--project-destinations",
+    ap.add_argument("--project-destinations", required=True,
                     help="published file of project-controlled Soqucoin addresses, "
                          "one per line; a memo naming one is never credited; "
-                         "may list no addresses")
+                         "may list no addresses; its sha256 is in commitment.txt")
     ap.add_argument("--excluded-authorities", required=True,
                     help="published file of Solana addresses whose burns are withheld; "
                          "may list no addresses; its sha256 is in commitment.txt")
@@ -694,9 +695,14 @@ def main():
                                        excluded_destinations_sha)},
             args.mint, args.window_open_slot, cutoff, args.freeze_slot,
             commitment_hash, excl_sha, provisional=args.provisional)
+        # The record is readable by its owner alone: created 0600, and an
+        # existing file is set to 0600 before a byte of this run is written.
+        # A directory the tool creates for it is 0700.
         record_dir = os.path.dirname(os.path.abspath(args.screening_record))
-        os.makedirs(record_dir, exist_ok=True)
-        with open(args.screening_record, "w") as f:
+        os.makedirs(record_dir, mode=0o700, exist_ok=True)
+        fd = os.open(args.screening_record, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+        with os.fdopen(fd, "w") as f:
+            os.fchmod(f.fileno(), 0o600)
             f.write(canonical_json(record))
     os.makedirs(args.out, exist_ok=True)
     with open(os.path.join(args.out, "allocations.json"), "w") as f:
@@ -718,6 +724,7 @@ def main():
         "freeze_slot=%s\n"
         "provisional=%s\n"
         "tool_version=%s\n"
+        "mint=%s\n"
         "allocations_sha256=%s\n"
         "exclusions_sha256=%s\n"
         "outputs_sha256=%s\n"
@@ -730,7 +737,7 @@ def main():
          len({e["address"] for e in over_cap}), len(withheld), args.window_open_slot,
          cutoff, "unknown" if args.freeze_slot is None else args.freeze_slot,
          "yes" if args.provisional else "no",
-         TOOL_VERSION,
+         TOOL_VERSION, args.mint,
          hashlib.sha256(alloc_json.encode()).hexdigest(), excl_sha,
          hashlib.sha256(outputs_hex.encode()).hexdigest(), sdn_sha, project_sha,
          destinations_sha, authorities_sha, excluded_destinations_sha)

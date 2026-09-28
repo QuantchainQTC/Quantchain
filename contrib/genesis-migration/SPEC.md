@@ -62,9 +62,9 @@ Rules that follow, in the order the tool applies them:
   invalid.
 - **A memo naming a project-controlled Soqucoin address is ineligible**
   (`project-destination`), whoever made the burn. The addresses are the
-  published file `project-destinations.txt` (may be empty); its sha256 is
-  part of the commitment. With the burn-side rule above, no burn can route an
-  allocation to the project.
+  published file `project-destinations.txt` (it may list no addresses, but
+  every run reads it); its sha256 is part of the commitment. With the
+  burn-side rule above, no burn can route an allocation to the project.
 - **The legal screen** (the section below is normative). The
   burn authorities are matched against the OFAC SDN List's digital-currency
   address identifiers and against the published `excluded-authorities.txt`;
@@ -73,8 +73,8 @@ Rules that follow, in the order the tool applies them:
   screen applies to every burn that names a valid non-project destination,
   whatever its amount. The SDN input is the published file built by
   `sdn_extract.py` from the OFAC XML release; the sha256 of all three files
-  is part of the commitment. **No commitment is produced without the SDN
-  file, the two lists and a screening record path.**
+  is part of the commitment. **No run starts without the SDN file and the
+  two lists, and no final run without a screening record path.**
 - Burns totalling less than **1 pSOQ** (1,000,000 base units) in the
   transaction → **ineligible** (`below-dust-floor`).
 - After every transaction is classified, **a destination that a withheld
@@ -107,7 +107,13 @@ verify your burn appears before assuming anything.
   output (the SegWit, PAT or LatticeFold `OP_RETURN` forms that ConnectBlock
   excludes from the committed range). A witness-v1 address cannot produce one;
   the tool asserts it anyway and refuses if it ever did.
-- The aggregate must not exceed `MAX_MONEY` (the per-transaction ceiling).
+- The aggregate must not exceed `MAX_MONEY` (the per-transaction ceiling)
+  less 500,000 SOQ. The coinbase that carries the allocations also pays the
+  miner, and `CheckTransaction` bounds the sum of a transaction's outputs by
+  `MAX_MONEY`. The reserve is the largest block subsidy at any height: the
+  first-epoch subsidy on regtest, where the dry run arms the allocation. On
+  mainnet the first-epoch subsidy is 100,000 SOQ, and block 1 carries no fees
+  because it is its coinbase alone.
 
 ## The allocation cap (normative)
 
@@ -189,8 +195,10 @@ anyone.
   transactions), the sha256 of every input list and the `hash_migration_outputs`
   and `exclusions_sha256` of the artifact set it belongs to. The record has
   no clock and is byte-identical across re-runs. It is not published and is
-  retained for five years. A final run refuses to start without a record
-  path; a record path inside the published directory is refused.
+  retained for five years. The tool writes it readable by its owner alone
+  (mode 0600, also when the file already exists). A final run refuses to
+  start without a record path; a record path inside the published directory
+  is refused.
 - **The re-run before the constants are fixed.** The final run is repeated
   when the constants are fixed, with that day's SDN release and any update to
   the two lists. The result may differ from the freeze run's result only by
@@ -198,11 +206,17 @@ anyone.
   allocation loses is now `withheld`. `compare_runs.py` checks exactly that
   and fails on anything else (an allocation added, increased or otherwise
   changed, a structural verdict that moved, a different
-  window or project list, a provisional run). If the allocation cap bound at
-  the freeze and a removal frees a slot, the re-run commits the next
-  allocation in rank and the check fails on purpose; the constants are not
-  fixed until the difference is published and explained. A designation made
-  after the launch release is tagged never changes the committed outputs.
+  window, project list or mint, a provisional run). It also recomputes, in
+  both runs, `outputs.hex` and every line of `commitment.txt` that is a
+  function of the run's files, so the compiled constants are the ones the
+  compared allocations produce. It checks a reduction's shape and not its
+  size: `allocations.json` carries no per-transaction amounts, and the amounts
+  are checked by re-running the tool from the published inputs. If the
+  allocation cap bound at the freeze and a removal frees a slot, the re-run
+  commits the next allocation in rank and the check fails on purpose; the
+  constants are not fixed until the difference is published and explained. A
+  designation made after the launch release is tagged never changes the
+  committed outputs.
 - `commitment.txt` records `withheld_count`, the number of withheld
   transactions in `exclusions.json`.
 
@@ -212,8 +226,10 @@ anyone.
 of the committed output vector (CompactSize count, then each output as
 int64-LE value + var-length script), displayed in reversed-byte (uint256)
 hex. `nMigrationTotal` = the exact sum of all committed values. These two
-values, plus the window slots and the hashes of the published artifacts, form
-`commitment.txt`. `outputs.hex` is the serialized vector itself: the bytes the
+values, plus the mint, the window slots and the hashes of the published
+artifacts, form `commitment.txt`. Its `mint` line names the token whose burns
+the run read; a migration commitment is one whose `mint` is the pSOQ mint
+above. `outputs.hex` is the serialized vector itself: the bytes the
 hash covers, the value regtest takes in `-migrationoutputs`, and the input
 for the compiled-in `vMigrationOutputs`.
 

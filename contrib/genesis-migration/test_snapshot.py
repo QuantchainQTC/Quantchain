@@ -11,10 +11,13 @@
 # discipline as the consensus digest tests.
 
 import contextlib
+import hashlib
 import io
 import json
 import os
+import re
 import shutil
+import stat
 import subprocess
 import sys
 import tempfile
@@ -25,9 +28,9 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from bech32m import (BECH32M_CONST, CHARSET, bech32_hrp_expand, bech32_polymod,
                      bech32m_decode, convertbits, decode_v1_address, encode_v1_address)
-from serialize import (MAX_ALLOCATION_OUTPUTS, MAX_BLOCK_BASE_SIZE, MAX_MONEY,
-                       MAX_OUTPUTS_SERIALIZED_BYTES, compact_size, hash_migration_outputs,
-                       is_block_commitment_shape, ser_txout_vector,
+from serialize import (MAX_ALLOCATION_OUTPUTS, MAX_BLOCK_BASE_SIZE, MAX_BLOCK_SUBSIDY,
+                       MAX_MONEY, MAX_OUTPUTS_SERIALIZED_BYTES, compact_size,
+                       hash_migration_outputs, is_block_commitment_shape, ser_txout_vector,
                        utxo_cost_floor, v1_script)
 import compare_runs
 import sdn_extract
@@ -395,6 +398,34 @@ class BuildOutputsTests(unittest.TestCase):
         with self.assertRaises(SystemExit):
             build_outputs(allocations)
 
+    def test_aggregate_leaves_room_for_the_block_subsidy(self):
+        # The coinbase that carries the allocations also pays the miner, and
+        # CheckTransaction bounds the sum of its outputs by MAX_MONEY. A vector
+        # inside MAX_MONEY but over MAX_MONEY less the subsidy is refused.
+        bound = MAX_MONEY - MAX_BLOCK_SUBSIDY
+        for total in (bound + 1, MAX_MONEY):
+            allocations = {ADDR_A.lower(): {"sats": total - 100_000_000, "txids": ["t1"]},
+                           ADDR_B.lower(): {"sats": 100_000_000, "txids": ["t2"]}}
+            with self.assertRaises(SystemExit, msg=total) as refused:
+                build_outputs(allocations)
+            self.assertIn("block subsidy", str(refused.exception))
+        allocations = {ADDR_A.lower(): {"sats": bound - 100_000_000, "txids": ["t1"]},
+                       ADDR_B.lower(): {"sats": 100_000_000, "txids": ["t2"]}}
+        self.assertEqual(build_outputs(allocations)[1], bound)
+
+    def test_subsidy_reserve_is_the_largest_initial_subsidy_in_chainparams(self):
+        # Read against the C++ side at run time: nInitialSubsidy of every
+        # network, the first-epoch subsidy GetSoqucoinBlockSubsidy pays.
+        path = os.path.join(HERE, "..", "..", "src", "chainparams.cpp")
+        if not os.path.exists(path):
+            self.skipTest("not inside a soqucoin checkout")
+        with open(path) as f:
+            values = [int(v) for v in
+                      re.findall(r"consensus\.nInitialSubsidy = (\d+);", f.read())]
+        self.assertEqual(len(values), 4)   # main, test, regtest, stagenet
+        self.assertEqual(MAX_BLOCK_SUBSIDY, max(values) * 100_000_000)
+        self.assertEqual(MAX_BLOCK_SUBSIDY, 500_000 * 100_000_000)
+
 
 # ---------------------------------------------------------------------------
 # destination-side exclusion and address case
@@ -728,7 +759,10 @@ class AddressFileTests(unittest.TestCase):
             self.assertEqual(len(sha), 64)
         finally:
             os.unlink(path)
-        self.assertEqual(load_address_file(None), (set(), "none"))
+        # A missing or empty path is never read as an empty list.
+        for path in (None, ""):
+            with self.assertRaises((TypeError, OSError), msg=repr(path)):
+                load_address_file(path)
 
     def test_committed_project_file_loads(self):
         addresses, _ = load_address_file(os.path.join(HERE, "project-addresses.txt"))
@@ -1017,7 +1051,7 @@ class ScreeningRecordTests(unittest.TestCase):
         withheld = [{"txid": "sig_x", "slot": 5, "destination": ADDR_A.lower(),
                      "grounds": [{"ground": "sdn-authority", "authority": SDN_AUTHORITY}]}]
         inputs = {"sdn_addresses": ("/somewhere/sdn.txt", "aa" * 32),
-                  "excluded_authorities": (None, "none")}
+                  "excluded_authorities": ("/somewhere/authorities.txt", "bb" * 32)}
         return withheld, build_screening_record(
             withheld, inputs, mint=MINT, window_open_slot=1, cutoff_slot=2, freeze_slot=2,
             commitment_hash="cc" * 32, exclusions_sha256="dd" * 32, provisional=False)
@@ -1030,7 +1064,7 @@ class ScreeningRecordTests(unittest.TestCase):
         self.assertEqual(record["inputs"]["sdn_addresses"],
                          {"file": "sdn.txt", "sha256": "aa" * 32})
         self.assertEqual(record["inputs"]["excluded_authorities"],
-                         {"file": "none", "sha256": "none"})
+                         {"file": "authorities.txt", "sha256": "bb" * 32})
         self.assertEqual(record["hash_migration_outputs"], "cc" * 32)
         self.assertEqual(record["exclusions_sha256"], "dd" * 32)
         self.assertEqual(record["provisional"], False)
@@ -1053,14 +1087,45 @@ class ScreeningRecordTests(unittest.TestCase):
                                                                      "r.json")))
 
 
-def write_run(directory, allocations, exclusions, commitment):
+DERIVED_LINES = ("hash_migration_outputs", "n_migration_total", "allocation_count",
+                 "over_cap_count", "withheld_count", "allocations_sha256",
+                 "exclusions_sha256", "outputs_sha256")
+
+
+def run_files(allocations, exclusions):
+    """What snapshot.py writes for a set: the two JSON files, outputs.hex, and
+    the lines of commitment.txt that are a function of them."""
+    files = {"allocations.json": snapshot.canonical_json(allocations),
+             "exclusions.json": snapshot.canonical_json(exclusions)}
+    outputs, total = build_outputs(allocations)
+    files["outputs.hex"] = ser_txout_vector(outputs).hex() + "\n"
+    lines = {
+        "hash_migration_outputs": hash_migration_outputs(outputs),
+        "n_migration_total": str(total),
+        "allocation_count": str(len(outputs)),
+        "over_cap_count": str(len({e["address"] for e in exclusions
+                                   if e["reason"] == "over-cap"})),
+        "withheld_count": str(sum(1 for e in exclusions if e["reason"] == WITHHELD)),
+    }
+    for name, key in (("allocations.json", "allocations_sha256"),
+                      ("exclusions.json", "exclusions_sha256"),
+                      ("outputs.hex", "outputs_sha256")):
+        lines[key] = hashlib.sha256(files[name].encode()).hexdigest()
+    return files, lines
+
+
+def write_run(directory, allocations, exclusions, commitment, outputs_hex=None):
+    """A run directory as snapshot.py writes one; a line in `commitment`
+    replaces the computed line, and `outputs_hex` replaces outputs.hex."""
+    files, lines = run_files(allocations, exclusions)
+    lines.update(commitment)
+    if outputs_hex is not None:
+        files["outputs.hex"] = outputs_hex
+    files["commitment.txt"] = "".join("%s=%s\n" % item for item in lines.items())
     os.makedirs(directory, exist_ok=True)
-    with open(os.path.join(directory, "allocations.json"), "w") as f:
-        f.write(snapshot.canonical_json(allocations))
-    with open(os.path.join(directory, "exclusions.json"), "w") as f:
-        f.write(snapshot.canonical_json(exclusions))
-    with open(os.path.join(directory, "commitment.txt"), "w") as f:
-        f.write("".join("%s=%s\n" % item for item in commitment.items()))
+    for name, text in files.items():
+        with open(os.path.join(directory, name), "w") as f:
+            f.write(text)
 
 
 class CompareRunsTests(unittest.TestCase):
@@ -1074,9 +1139,9 @@ class CompareRunsTests(unittest.TestCase):
         self.alloc = {ADDR_A.lower(): {"sats": 750_000_000, "txids": ["sigA", "sigB"]},
                       ADDR_B.lower(): {"sats": 300_000_000, "txids": ["sigC"]}}
         self.excl = [{"txid": "sigF", "slot": 156, "reason": "no-memo"}]
-        self.commitment = {"hash_migration_outputs": "x", "window_open_slot": "100",
+        self.commitment = {"window_open_slot": "100",
                            "cutoff_slot": "200", "freeze_slot": "200", "provisional": "no",
-                           "tool_version": "4", "allocation_cap": "20000",
+                           "tool_version": "4", "mint": MINT, "allocation_cap": "20000",
                            "sdn_file_sha256": "s1", "project_file_sha256": "p",
                            "project_destinations_sha256": "q",
                            "excluded_authorities_sha256": "e1",
@@ -1094,6 +1159,51 @@ class CompareRunsTests(unittest.TestCase):
 
     def test_identical_runs_pass(self):
         self.assertEqual(self.new_run(sdn_file_sha256="s2"), [])
+
+    def test_a_line_its_files_do_not_give_fails_in_either_run(self):
+        # The same allocations and exclusions as the freeze run, with one line
+        # that is a function of the files set to another value. The hash and
+        # the total are the constants compiled in.
+        for key in DERIVED_LINES:
+            problems = self.new_run(**{key: "1"})
+            self.assertTrue(any(p.startswith("new run's %s is 1;" % key)
+                                for p in problems), (key, problems))
+            write_run(self.prev, self.alloc, self.excl, dict(self.commitment, **{key: "1"}))
+            problems = self.new_run()
+            self.assertTrue(any(p.startswith("previous run's %s is 1;" % key)
+                                for p in problems), (key, problems))
+            write_run(self.prev, self.alloc, self.excl, self.commitment)
+
+    def test_a_vector_that_is_not_the_allocations_fails_in_either_run(self):
+        # outputs.hex, the hash, the total and the outputs hash agree with one
+        # another and describe a vector that pays ADDR_A more than
+        # allocations.json does; every other line is the honest one.
+        forged = dict(self.alloc)
+        forged[ADDR_A.lower()] = {"sats": 950_000_000, "txids": ["sigA", "sigB"]}
+        forged_files, forged_lines = run_files(forged, self.excl)
+        consensus = {key: forged_lines[key] for key in
+                     ("hash_migration_outputs", "n_migration_total", "outputs_sha256")}
+        for directory, label in ((self.new, "new"), (self.prev, "previous")):
+            write_run(self.prev, self.alloc, self.excl, self.commitment)
+            write_run(self.new, self.alloc, self.excl, self.commitment)
+            write_run(directory, self.alloc, self.excl, dict(self.commitment, **consensus),
+                      outputs_hex=forged_files["outputs.hex"])
+            problems = compare_runs.compare(self.prev, self.new)
+            self.assertEqual(sorted(p.split(" is ")[0] for p in problems),
+                             ["%s run's %s" % (label, key) for key in
+                              ("hash_migration_outputs", "n_migration_total",
+                               "outputs.hex", "outputs_sha256")], problems)
+
+    def test_allocations_the_tool_would_refuse_fail(self):
+        # An allocation under the utxo-cost floor: build_outputs refuses it, so
+        # no run of the tool wrote it, and the check lists it.
+        write_run(self.new, self.alloc, self.excl, self.commitment)
+        alloc = dict(self.alloc)
+        alloc[ADDR_B.lower()] = {"sats": 279_499, "txids": ["sigC"]}
+        with open(os.path.join(self.new, "allocations.json"), "w") as f:
+            f.write(snapshot.canonical_json(alloc))
+        self.assertTrue(any(p.startswith("new run's allocations.json is refused")
+                            for p in compare_runs.compare(self.prev, self.new)))
 
     def test_reduction_by_withholding_passes(self):
         # A wallet withheld after the freeze had burned to ADDR_A after its
@@ -1175,8 +1285,8 @@ class CompareRunsTests(unittest.TestCase):
         excl = [{"txid": "sigF", "slot": 156, "reason": WITHHELD}]
         self.assertEqual(self.new_run(excl=excl), [])
 
-    def test_window_tool_and_project_inputs_may_not_move(self):
-        for key in ("window_open_slot", "freeze_slot", "cutoff_slot", "tool_version",
+    def test_window_tool_mint_and_project_inputs_may_not_move(self):
+        for key in ("window_open_slot", "freeze_slot", "cutoff_slot", "tool_version", "mint",
                     "project_file_sha256", "project_destinations_sha256"):
             problems = self.new_run(**{key: "moved"})
             self.assertTrue(any(key in p for p in problems), key)
@@ -1223,12 +1333,27 @@ class CommandLineTests(unittest.TestCase):
         cmd += list(extra)
         return subprocess.run(cmd, capture_output=True, text=True)
 
-    def test_final_run_requires_the_legal_lists_and_the_record(self):
-        for flag in ("--excluded-authorities", "--excluded-destinations", "--screening-record"):
+    def test_final_run_requires_every_list_and_the_record(self):
+        for flag in ("--project-destinations", "--excluded-authorities",
+                     "--excluded-destinations", "--screening-record"):
             result = self.run_tool(omit=(flag,))
             self.assertEqual(result.returncode, 2, flag)
             self.assertIn(flag, result.stderr)
             self.assertFalse(os.path.exists(self.out), flag)
+        # A draft needs the project destinations as well.
+        result = self.run_tool("--provisional", omit=("--project-destinations",))
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("--project-destinations", result.stderr)
+
+    def test_an_empty_list_path_stops_the_run(self):
+        # An empty argument satisfies argparse's required check. It must not
+        # be read as an empty list with the sentinel `none` as its hash.
+        for flag in ("--project-destinations", "--excluded-authorities",
+                     "--excluded-destinations"):
+            result = self.run_tool(flag, "", omit=(flag,))
+            self.assertNotEqual(result.returncode, 0, flag)
+            self.assertFalse(os.path.exists(self.out), flag)
+            self.assertFalse(os.path.exists(self.record), flag)
 
     def test_record_inside_the_published_directory_is_refused(self):
         self.record = os.path.join(self.out, "screening-record.json")
@@ -1244,8 +1369,8 @@ class CommandLineTests(unittest.TestCase):
         self.assertEqual(commitment["hash_migration_outputs"], EXPECTED_HASH)
         self.assertEqual(commitment["n_migration_total"], str(EXPECTED_TOTAL))
         self.assertEqual(commitment["tool_version"], "5")
+        self.assertEqual(commitment["mint"], MINT)
         self.assertEqual(commitment["withheld_count"], "1")
-        import hashlib
         self.assertEqual(commitment["excluded_authorities_sha256"],
                          hashlib.sha256(b"# none\n").hexdigest())
         self.assertEqual(commitment["excluded_destinations_sha256"],
@@ -1271,6 +1396,41 @@ class CommandLineTests(unittest.TestCase):
         self.run_tool()
         with open(self.record, "rb") as f:
             self.assertEqual(f.read(), first)
+
+    def test_screening_record_is_readable_by_its_owner_alone(self):
+        # Under a umask that grants everyone everything, the record is created
+        # 0600 in a directory created 0700; a record left readable by others is
+        # set to 0600 before the next run writes to it.
+        previous = os.umask(0)
+        try:
+            result = self.run_tool()
+        finally:
+            os.umask(previous)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(stat.S_IMODE(os.stat(self.record).st_mode), 0o600)
+        self.assertEqual(stat.S_IMODE(os.stat(os.path.dirname(self.record)).st_mode), 0o700)
+        os.chmod(self.record, 0o644)
+        result = self.run_tool()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(stat.S_IMODE(os.stat(self.record).st_mode), 0o600)
+
+    def test_two_runs_of_the_tool_compare_clean(self):
+        # The freeze run, then a re-run whose excluded-destinations list names
+        # ADDR_B: sigC is withheld and ADDR_B removed. compare_runs recomputes
+        # both runs' lines from their files and finds nothing to refuse.
+        freeze = self.out
+        result = self.run_tool()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        with open(self.paths["excluded-destinations.txt"], "w") as f:
+            f.write(ADDR_B + "\n")
+        self.out = os.path.join(self.dir, "rerun")
+        result = self.run_tool()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        result = subprocess.run([sys.executable, os.path.join(HERE, "compare_runs.py"),
+                                 freeze, self.out], capture_output=True, text=True)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        with open(os.path.join(self.out, "allocations.json")) as f:
+            self.assertEqual(set(json.load(f)), {ADDR_A.lower()})
 
     def published_set(self):
         with open(os.path.join(self.out, "allocations.json")) as f:
@@ -1354,6 +1514,9 @@ class InProcessMainTests(unittest.TestCase):
         # A cap of one keeps ADDR_B; ADDR_A's two transactions are over-cap.
         with unittest.mock.patch.object(snapshot, "MAX_ALLOCATION_OUTPUTS", 1):
             commitment, allocations, exclusions = self.run_main()
+            # compare_runs recomputes over_cap_count as the tool writes it.
+            self.assertEqual(compare_runs.self_check("capped", compare_runs.read_run(self.out)),
+                             [])
         self.assertEqual(commitment["allocation_cap"], "1")
         self.assertEqual(commitment["over_cap_count"], "1")
         self.assertEqual(commitment["allocation_count"], "1")
@@ -1634,6 +1797,7 @@ class DraftAndFinalRunTests(unittest.TestCase):
                "--mint", MINT, "--window-open-slot", str(WINDOW_OPEN), "--out", self.out,
                "--sdn-addresses", self.lists["sdn.txt"],
                "--project-addresses", self.lists["project.txt"],
+               "--project-destinations", self.lists["none.txt"],
                "--excluded-authorities", self.lists["none.txt"],
                "--excluded-destinations", self.lists["none.txt"]] + list(extra)
         result = subprocess.run(cmd, capture_output=True, text=True)
@@ -1691,6 +1855,7 @@ class DraftAndFinalRunTests(unittest.TestCase):
                    "--rpc-corpus", os.path.join(FIXTURES, "rpc_corpus.json"),
                    "--mint", MINT, "--window-open-slot", str(WINDOW_OPEN), "--out", self.out,
                    "--project-addresses", self.lists["project.txt"],
+                   "--project-destinations", self.lists["none.txt"],
                    "--excluded-authorities", self.lists["none.txt"],
                    "--excluded-destinations", self.lists["none.txt"]] + extra
             result = subprocess.run(cmd, capture_output=True, text=True)
@@ -1714,6 +1879,7 @@ class DraftAndFinalRunTests(unittest.TestCase):
                "--freeze-slot", str(FREEZE), "--out", self.out,
                "--sdn-addresses", self.lists["sdn.txt"],
                "--project-addresses", self.lists["project.txt"],
+               "--project-destinations", self.lists["none.txt"],
                "--excluded-authorities", self.lists["none.txt"],
                "--excluded-destinations", self.lists["none.txt"]] + list(self.final)
         result = subprocess.run(cmd, capture_output=True, text=True)
