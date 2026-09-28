@@ -19,7 +19,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
-from unittest import mock
+import unittest.mock
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
@@ -32,9 +32,17 @@ from serialize import (MAX_ALLOCATION_OUTPUTS, MAX_BLOCK_BASE_SIZE, MAX_MONEY,
 import compare_runs
 import sdn_extract
 import snapshot
-from snapshot import (WITHHELD, RpcClient, apply_allocation_cap, build_outputs,
-                      build_screening_record, classify_tx, load_address_file,
-                      record_path_is_outside, run_snapshot)
+
+# The module object is patched in tests; these names are the same objects.
+WITHHELD = snapshot.WITHHELD
+RpcClient = snapshot.RpcClient
+apply_allocation_cap = snapshot.apply_allocation_cap
+build_outputs = snapshot.build_outputs
+build_screening_record = snapshot.build_screening_record
+classify_tx = snapshot.classify_tx
+load_address_file = snapshot.load_address_file
+record_path_is_outside = snapshot.record_path_is_outside
+run_snapshot = snapshot.run_snapshot
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 FIXTURES = os.path.join(HERE, "fixtures")
@@ -1331,7 +1339,7 @@ class InProcessMainTests(unittest.TestCase):
                 "--excluded-destinations", self.paths["none.txt"],
                 "--screening-record", os.path.join(self.dir, "private", "record.json")]
         stdout = io.StringIO()
-        with mock.patch.object(sys, "argv", argv), contextlib.redirect_stdout(stdout):
+        with unittest.mock.patch.object(sys, "argv", argv), contextlib.redirect_stdout(stdout):
             snapshot.main()
         commitment = dict(line.split("=", 1) for line in stdout.getvalue().strip().splitlines())
         with open(os.path.join(self.out, "allocations.json")) as f:
@@ -1344,7 +1352,7 @@ class InProcessMainTests(unittest.TestCase):
         # With the SDN authority not listed the corpus credits two
         # destinations: ADDR_B 1,200,000,000 sats and ADDR_A 750,000,000 sats.
         # A cap of one keeps ADDR_B; ADDR_A's two transactions are over-cap.
-        with mock.patch.object(snapshot, "MAX_ALLOCATION_OUTPUTS", 1):
+        with unittest.mock.patch.object(snapshot, "MAX_ALLOCATION_OUTPUTS", 1):
             commitment, allocations, exclusions = self.run_main()
         self.assertEqual(commitment["allocation_cap"], "1")
         self.assertEqual(commitment["over_cap_count"], "1")
@@ -1551,8 +1559,6 @@ class RpcRetryTests(unittest.TestCase):
             return self.body
 
     def call_with(self, effects):
-        from unittest import mock
-        import urllib.error  # noqa: F401
         calls = []
 
         def fake_urlopen(req, timeout):
@@ -1562,12 +1568,12 @@ class RpcRetryTests(unittest.TestCase):
                 raise effect
             return self.Response(effect)
 
-        with mock.patch.object(snapshot.urllib.request, "urlopen", fake_urlopen), \
-                mock.patch.object(snapshot.time, "sleep", lambda seconds: None):
+        with unittest.mock.patch.object(snapshot.urllib.request, "urlopen", fake_urlopen), \
+                unittest.mock.patch.object(snapshot.time, "sleep", lambda seconds: None):
             try:
                 return RpcClient("http://rpc.invalid").call(
                     "getSlot", [{"commitment": "finalized"}]), len(calls)
-            except BaseException as e:
+            except (SystemExit, Exception) as e:
                 return e, len(calls)
 
     def test_dropped_connection_and_timeout_are_retried(self):

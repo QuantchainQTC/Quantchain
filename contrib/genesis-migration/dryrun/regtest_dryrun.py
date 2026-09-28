@@ -98,7 +98,9 @@ class Node(object):
             return
         try:
             self.rpc("stop")
-        except Exception:
+        except (OSError, ValueError, RpcError):
+            # The node may already be down or refuse the call; wait() and kill()
+            # below stop it either way.
             pass
         try:
             self.proc.wait(timeout=60)
