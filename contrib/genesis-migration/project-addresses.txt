@@ -1,0 +1,16 @@
+# Project-controlled pSOQ addresses.
+#
+# Burns whose authority is any address below are excluded from the migration
+# allocation regardless of memo. The list is the set published on
+# soqucoin.org/transparency, as measured 2026-08-26 and re-read 2026-09-11.
+# Each entry is an owner wallet, the authority a burn from its token accounts
+# names. The sha256 of this file is recorded in commitment.txt by snapshot.py;
+# the file does not change after the window is announced.
+AAgEFLzJxbBq8tS1GFQ4omuhdzrFmxEX2QWemK23t98q # treasury multisig (Squads vault)
+GUN7YRhuCU6tnUXFdNhpH1ie3372JZqM8pFJ9zznahSB # exchange custody account
+D69JmP1gHSQmkVU16ZcqWerbw1veWieSNdZeokEiiZ1g # project account
+5w2EJr4V5ncu8cUHBM5azEpN9Vh5yCjN36pC9JB4xujA # project operations
+AbaJ7JnZxqtgmjYt3Pb6aZz8FxDipUwm2Q8A8D6AHtug # project account
+EadvxYNfvmJ7TYr5GDzJFYPNS4fHwXPiuRjiYbT9xR1C # project account
+A39hKD5G83ptKo3wmyauyCKaeGmS3SEbSt5tkW1KVMgd # project account (empty at measurement)
+5hqicT74HfWiiXPef2MGFPUTZubvFiLu2uVZmm7xMm13 # project account (empty at measurement)

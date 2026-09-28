@@ -1,0 +1,14 @@
+# Project-controlled Soqucoin addresses (the destination-side exclusion in SPEC.md).
+# A burn whose memo names one of these addresses is never credited, whoever made it, so
+# no burn can route an allocation to the project. One lowercase bech32m address per
+# line; '#' starts a comment. This file's sha256 is recorded in commitment.txt as
+# project_destinations_sha256.
+#
+# The list holds every project-controlled mainnet address that exists when the window
+# is announced (pool reward addresses, treasury and foundation receive addresses), and
+# like project-addresses.txt it does not change after the announcement.
+sq1pjw7h3gfc37dwyd29prvrr6k0yj3fztagk8hs5yglejrcuqwr950s9r7at3 # pool fee recipient
+sq1py7huq70ga2xqam5hrakyc5z2nnv5jxep3hcfz592x56u9047v4usqyxm3n # project-controlled
+sq1pfam90rkjz7qv79ufd8350ljxzhxh40c8n2p43lgcrx7pcr37mjxqnpuy07 # vault
+sq1p9rrnz96z58exgf793nryk4rv945u0lmdx62ah8mvkluh3q3p9dps8td5jd # Foundation wallet
+sq1pl6qf2qjht577ljvjmwuq0elk4gcmettkks6m6jthnumzlye0adsqndg2gc # spare, unassigned
