@@ -11,8 +11,8 @@
 
 The mainnet genesis block previously reused the Dogecoin genesis template
 (message "Nintondo", nTime 1386325540, nonce 99943, the original ECDSA P2PK
-output). Launch checklist item A1 and bead z9vk ratify replacing it before
-launch with a purpose-built genesis. This document is the complete procedure,
+output). The decision was to replace it before launch with a purpose-built
+genesis. This document is the complete procedure,
 staged so the ceremony itself is a one-sitting operation. It is a
 consensus-touching change: it lands inside Freeze Candidate 4 and shares that
 candidate's soak.
@@ -167,10 +167,9 @@ be checked later.
    `genesisOutputScript`, `genesis.nTime` — before building. If the two files
    disagree, the miner mines the wrong block; the pin assert catches it
    loudly, but only after a wasted loop.
-   An independent cross-check of the miner's output is staged at
-   `~/ceremony-prep/recompute_genesis.py` (pure-Python scrypt/sha256d over the
-   header; self-checks byte-exact against the previous pinned genesis before
-   computing the new one).
+   Cross-check the miner's output independently with a pure-Python
+   scrypt/sha256d recomputation over the header that first reproduces the
+   previous pinned genesis byte for byte.
 5. Update every pin, in one commit:
    - `src/chainparams.cpp:439` mainnet `hashGenesisBlock` assert
    - `src/chainparams.cpp:440` mainnet `hashMerkleRoot` assert
@@ -206,15 +205,19 @@ every network, which the migration_rule_tests suite pins as byte-for-byte
 unchanged validation, and the consensus digest absorbs them so any later
 arming is a visible digest move.
 
-If an allocation event is ever scheduled, it happens as its own pin-setting
-release at a pre-announced future height, with its own procedure: the
-committed output vector is produced by a deterministic tool run on two
-independent RPC providers whose commitment hashes must match, published in
-full before the constants are set, compiled in beside a build-time assertion
-that the vector hashes to `hashMigrationOutputs` and sums to
-`nMigrationTotal`, and soaked like any other consensus release. Nothing about
-this launch depends on that event, and skipping it forever changes nothing
-here.
+The allocation announced for block 1 has its own procedure: the committed output
+vector is produced by the deterministic tool in `contrib/genesis-migration/`
+(specification `SPEC.md` there) run on two independent RPC providers whose
+`commitment.txt` must be byte-identical, published in full before the
+constants are set, and compiled into the launch release through the single
+`ArmMigration(...)` call documented beside the mainnet genesis pins in
+`src/chainparams.cpp`. That call writes every reachable height tier and
+asserts at startup that the vector hashes to `hashMigrationOutputs` and sums
+to `nMigrationTotal` (`src/test/migration_arming_tests.cpp` checks that the
+tiers agree on every network). The migration height is 1: setting the
+constants after genesis would be a hard fork, and there are no post-mainnet
+hard forks, so the constants are compiled into the launch release. The genesis
+block itself does not depend on them.
 
 ## What does not change
 
