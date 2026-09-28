@@ -1,0 +1,15 @@
+# Genesis migration: excluded destinations (a published list; SPEC.md, legal exclusions).
+#
+# One Soqucoin address per line (bech32m, `sq1...`, matched case-insensitively).
+# A memo naming a listed address is not credited, whoever made the burn, and
+# its transaction appears in exclusions.json with the code `withheld`. The
+# list is published with the tool before the window opens and gains a line
+# when a destination is excluded during the window or before the constants
+# are fixed; before the final run a line comes out if a review clears it.
+# The version each run read is published beside that run. Its sha256 is a
+# line of commitment.txt, so anyone re-running the tool with this file
+# reproduces the result. It carries no reasons: the ground for every entry
+# is in the project's screening record, which is not published.
+#
+# Format: one address per line; '#' begins a comment; blank lines ignored.
+# No addresses are listed.

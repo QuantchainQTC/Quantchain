@@ -1,0 +1,17 @@
+# Genesis migration: excluded authorities (a published list; SPEC.md, legal exclusions).
+#
+# One Solana address per line. A burn whose authority is listed here is not
+# credited, whatever its memo, and its transaction appears in exclusions.json
+# with the code `withheld`. A destination that such a burn names before any
+# credited burn to it is withheld entirely. The list is published with the
+# tool before the window opens and gains a line when an authority is withheld
+# during the window or before the constants are fixed; a wallet referred to
+# review is listed until the review is recorded, and before the final run its
+# line comes out if the review clears it. The version each run read is
+# published beside that run. Its sha256 is a line of commitment.txt, so anyone
+# re-running the tool with this file reproduces the result. It carries no
+# reasons: the ground for every entry is in the project's screening record,
+# which is not published.
+#
+# Format: one address per line; '#' begins a comment; blank lines ignored.
+# No addresses are listed.
