@@ -236,18 +236,20 @@ log ""
 
 log "--- Test 6: Address Uniqueness ---"
 
-ADDR1=$($CLI -$NETWORK getnewaddress 2>&1) || true
-ADDR2=$($CLI -$NETWORK getnewaddress 2>&1) || true
-ADDR3=$($CLI -$NETWORK getnewaddress 2>&1) || true
+if ADDR1=$($CLI -$NETWORK getnewaddress 2>&1) &&
+    ADDR2=$($CLI -$NETWORK getnewaddress 2>&1) &&
+    ADDR3=$($CLI -$NETWORK getnewaddress 2>&1); then
+    log "Address 1: $ADDR1"
+    log "Address 2: $ADDR2"
+    log "Address 3: $ADDR3"
 
-log "Address 1: $ADDR1"
-log "Address 2: $ADDR2"
-log "Address 3: $ADDR3"
-
-if [[ "$ADDR1" != "$ADDR2" && "$ADDR2" != "$ADDR3" && "$ADDR1" != "$ADDR3" ]]; then
-    pass "All generated addresses are unique"
+    if [[ "$ADDR1" != "$ADDR2" && "$ADDR2" != "$ADDR3" && "$ADDR1" != "$ADDR3" ]]; then
+        pass "All generated addresses are unique"
+    else
+        fail "Duplicate addresses generated (security issue!)"
+    fi
 else
-    fail "Duplicate addresses generated (security issue!)"
+    fail "getnewaddress failed: ${ADDR3:-${ADDR2:-$ADDR1}}"
 fi
 log ""
 
