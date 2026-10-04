@@ -136,10 +136,12 @@ static bool DecryptKey(const CKeyingMaterial& vMasterKey, const std::vector<unsi
     if(!DecryptSecret(vMasterKey, vchCryptedSecret, vchPubKey.GetHash(), vchSecret))
         return false;
 
-    if (vchSecret.size() != 32)
+    if (vchSecret.size() != CKey::SIZE)
         return false;
 
-    key.Set(vchSecret.begin(), vchSecret.end(), vchPubKey.IsCompressed());
+    // Every ML-DSA-44 key has fCompressed false (CKey::MakeNewKey). vchPubKey.IsCompressed() is true for any valid
+    // ML-DSA-44 public key, so it cannot restore the flag.
+    key.Set(vchSecret.begin(), vchSecret.end(), false);
     return key.VerifyPubKey(vchPubKey);
 }
 

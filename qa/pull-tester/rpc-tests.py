@@ -140,6 +140,7 @@ testScripts = [
     'p2p-addr.py',
     'p2p-tx-download.py',
     # vv Tests less than 30s vv
+    'wallet-encryption.py',
     'walletnotify.py',
     'p2p_invalid_locator.py',
     'mempool_resurrect_test.py',

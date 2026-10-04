@@ -2,6 +2,7 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+#include "key.h"
 #include "test/test_bitcoin.h"
 #include "utilstrencodings.h"
 #include "wallet/crypter.h"
@@ -121,6 +122,107 @@ BOOST_AUTO_TEST_CASE(decrypt) {
         uint256 hash(GetRandHash());
         TestCrypter::TestDecrypt(crypt, std::vector<unsigned char>(hash.begin(), hash.end()));
     }
+}
+
+// Makes public the two protected steps that encryptwallet and walletpassphrase call.
+class TestCryptoKeyStore : public CCryptoKeyStore
+{
+public:
+    using CCryptoKeyStore::EncryptKeys;
+    using CCryptoKeyStore::Unlock;
+};
+
+static CKeyingMaterial NewMasterKey()
+{
+    CKeyingMaterial master(WALLET_CRYPTO_KEY_SIZE);
+    GetStrongRandBytes(master.data(), master.size());
+    return master;
+}
+
+// A key record encrypted the way CCryptoKeyStore encrypts one: the IV is the start of the public key's hash.
+static std::vector<unsigned char> EncryptRecord(const CKeyingMaterial& master, const CKeyingMaterial& secret, const CPubKey& ivPubKey)
+{
+    const uint256 iv = ivPubKey.GetHash();
+    CCrypter crypter;
+    BOOST_REQUIRE(crypter.SetKey(master, std::vector<unsigned char>(iv.begin(), iv.begin() + WALLET_CRYPTO_IV_SIZE)));
+    std::vector<unsigned char> record;
+    BOOST_REQUIRE(crypter.Encrypt(secret, record));
+    return record;
+}
+
+// Whether a locked store holding only this record unlocks with the master key.
+static bool Unlocks(const CKeyingMaterial& master, const CPubKey& pubkey, const std::vector<unsigned char>& record)
+{
+    TestCryptoKeyStore store;
+    BOOST_REQUIRE(store.AddCryptedKey(pubkey, record));
+    return store.Unlock(master);
+}
+
+BOOST_AUTO_TEST_CASE(mldsa_key_record_refused) {
+    CKey key, other;
+    key.MakeNewKey(true);
+    other.MakeNewKey(true);
+    const CPubKey pubkey = key.GetPubKey();
+    const CKeyingMaterial secret(key.begin(), key.end());
+    const CKeyingMaterial master = NewMasterKey();
+
+    // The record as CCryptoKeyStore writes it unlocks; each case below changes one thing.
+    BOOST_CHECK(Unlocks(master, pubkey, EncryptRecord(master, secret, pubkey)));
+
+    // A master key that differs in one bit.
+    CKeyingMaterial wrong_master(master);
+    wrong_master[0] ^= 1;
+    BOOST_CHECK(!Unlocks(wrong_master, pubkey, EncryptRecord(master, secret, pubkey)));
+
+    // Another key's record stored under this public key. Decrypting it with this key's IV changes only the
+    // first 16-byte block, so the padding and the size pass and VerifyPubKey refuses it.
+    BOOST_CHECK(!Unlocks(master, pubkey, EncryptRecord(master, CKeyingMaterial(other.begin(), other.end()), other.GetPubKey())));
+
+    // The right public half after a damaged first byte, which is in rho: VerifyPubKey's signature check refuses it.
+    // Damage to K, s2 or t0 can pass that check, since a key damaged there can still sign validly.
+    CKeyingMaterial damaged(secret);
+    damaged[0] ^= 1;
+    BOOST_CHECK(!Unlocks(master, pubkey, EncryptRecord(master, damaged, pubkey)));
+
+    // A 32-byte secret, the size of the keys this crypter was first written for.
+    BOOST_CHECK(!Unlocks(master, pubkey, EncryptRecord(master, CKeyingMaterial(secret.begin(), secret.begin() + 32), pubkey)));
+}
+
+BOOST_AUTO_TEST_CASE(mldsa_encrypt_keys_then_unlock) {
+    TestCryptoKeyStore store;
+    std::vector<CKey> keys(3);
+    for (CKey& key : keys) {
+        key.MakeNewKey(true);
+        BOOST_REQUIRE(store.AddKeyPubKey(key, key.GetPubKey()));
+    }
+    CKeyingMaterial master = NewMasterKey();
+    BOOST_REQUIRE(store.EncryptKeys(master));
+    BOOST_REQUIRE(store.Lock());
+
+    CKeyingMaterial wrong_master(master);
+    wrong_master[0] ^= 1;
+    BOOST_CHECK(!store.Unlock(wrong_master));
+    BOOST_CHECK(store.IsLocked());
+
+    BOOST_REQUIRE(store.Unlock(master));
+    BOOST_CHECK(!store.IsLocked());
+    for (const CKey& key : keys) {
+        const CPubKey pubkey = key.GetPubKey();
+        CKey out;
+        BOOST_REQUIRE(store.GetKey(pubkey.GetID(), out));
+        // operator== compares the bytes and the compression flag, which CBitcoinSecret writes into an export.
+        BOOST_CHECK(out == key);
+        const uint256 hash = GetRandHash();
+        std::vector<unsigned char> sig;
+        BOOST_CHECK(out.Sign(hash, sig) && pubkey.Verify(hash, sig));
+    }
+
+    // Locked again, no key comes out until the master key unlocks it.
+    BOOST_REQUIRE(store.Lock());
+    CKey out;
+    BOOST_CHECK(!store.GetKey(keys[0].GetPubKey().GetID(), out));
+    BOOST_CHECK(store.Unlock(master));
+    BOOST_CHECK(store.GetKey(keys[0].GetPubKey().GetID(), out));
 }
 
 BOOST_AUTO_TEST_SUITE_END()
