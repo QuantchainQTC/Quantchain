@@ -276,6 +276,8 @@ UniValue pqwalletinfo(const JSONRPCRequest& request)
             "{\n"
             "  \"version\": \"1.0\",           (string) Wallet library version\n"
             "  \"dilithium_mode\": \"ML-DSA-44\", (string) Dilithium security level\n"
+            "  \"pubkey_size\": 1312,          (numeric) Public key size in bytes\n"
+            "  \"signature_size\": 2420,       (numeric) Signature size in bytes\n"
             "  \"address_format\": \"Bech32m\", (string) Address encoding format\n"
             "  \"encryption\": \"AES-256-CBC\",  (string) Cipher encryptwallet applies to the wallet's private keys\n"
             "  \"kdf\": \"SHA-512 EVP_BytesToKey\", (string) Passphrase key derivation; the iteration count is set per wallet when its passphrase is set\n"

@@ -6,9 +6,10 @@
 """Wallet encryption with ML-DSA-44 keys.
 
 encryptwallet, walletpassphrase, walletlock and walletpassphrasechange on node 1, across restarts: a wrong
-passphrase is refused and the wallet stays locked; the right one unlocks it and it spends, including from the
-key encryptwallet put in the key pool; a timed unlock locks it again; after walletpassphrasechange only the new
-passphrase unlocks it. pqwalletinfo names the cipher and key derivation encryptwallet uses.
+passphrase is refused and the wallet stays locked; the right one unlocks it, each key exports as it did before
+encryption, and it spends, including from the key encryptwallet put in the key pool; a timed unlock locks it
+again; after walletpassphrasechange only the new passphrase unlocks it, whether the wallet was locked or unlocked
+during the change. pqwalletinfo names the cipher and key derivation encryptwallet uses.
 
 ENCRYPT_SOQUCOIND, when set, is the binary node 1 runs while encryptwallet executes, so that this build opens a
 wallet another build encrypted. The key pool check is skipped then.
@@ -22,6 +23,7 @@ from test_framework.util import *
 
 PASSPHRASE = 'a test passphrase of several words'
 NEW_PASSPHRASE = 'a second test passphrase of several words'
+THIRD_PASSPHRASE = 'a third test passphrase of several words'
 
 RPC_WALLET_KEYPOOL_RAN_OUT = -12
 RPC_WALLET_UNLOCK_NEEDED = -13
@@ -57,18 +59,31 @@ class WalletEncryptionTest(BitcoinTestFramework):
         assert_raises_jsonrpc(RPC_WALLET_UNLOCK_NEEDED, None,
                               node.sendtoaddress, self.nodes[0].getnewaddress(), 1)
 
+    def exported_keys(self, node, name):
+        # dumpwallet writes under <datadir>/regtest/backups. A key line is '<secret> <time> <kind> # addr=<address>',
+        # the address being the base58 form of the key's ID.
+        node.dumpwallet(name)
+        keys = {}
+        with open(os.path.join(self.options.tmpdir, 'node1', 'regtest', 'backups', name)) as f:
+            for line in f:
+                if not line.startswith('#') and ' # addr=' in line:
+                    keys[line.split(' # addr=')[1].split()[0]] = line.split()[0]
+        return keys
+
     def run_test(self):
         # Coinbase maturity on regtest is 60 blocks.
         self.nodes[0].generate(70)
         self.sync_all()
         self.confirm(self.nodes[0].sendtoaddress(self.nodes[1].getnewaddress(), 10))
+        exported = self.exported_keys(self.nodes[1], 'before-encryption.dump')
+        assert_greater_than(len(exported), 0)
 
         encrypt_binary = os.getenv('ENCRYPT_SOQUCOIND')
         if encrypt_binary:
             stop_node(self.nodes[1], 1)
             self.start_node1(encrypt_binary)
         self.nodes[1].encryptwallet(PASSPHRASE)
-        soqucoind_processes[1].wait()
+        soqucoind_processes[1].wait(timeout=SOQUCOIND_PROC_WAIT_TIMEOUT)
         node = self.start_node1()
         assert_equal(node.getbalance(), 10)
 
@@ -90,9 +105,12 @@ class WalletEncryptionTest(BitcoinTestFramework):
             assert_equal(node.getbalance(), 15)
             spend = 12
 
-        # The right passphrase unlocks the wallet and it spends.
+        # The right passphrase unlocks the wallet. Each key exports as it did before encryption, and it spends.
         node.walletpassphrase(PASSPHRASE, 60)
         assert_greater_than(node.getwalletinfo()['unlocked_until'], 0)
+        after = self.exported_keys(node, 'after-encryption.dump')
+        for address, secret in exported.items():
+            assert_equal(after[address], secret)
         self.confirm(node.sendtoaddress(self.nodes[0].getnewaddress(), spend))
 
         # walletlock locks it, and so does the end of a timed unlock.
@@ -115,6 +133,17 @@ class WalletEncryptionTest(BitcoinTestFramework):
         self.assert_locked(node)
         node.walletpassphrase(NEW_PASSPHRASE, 60)
         self.confirm(node.sendtoaddress(self.nodes[0].getnewaddress(), 1))
+
+        # A change on an unlocked wallet leaves it unlocked and spending; once locked, only the newest passphrase
+        # unlocks it.
+        node.walletpassphrasechange(NEW_PASSPHRASE, THIRD_PASSPHRASE)
+        assert_greater_than(node.getwalletinfo()['unlocked_until'], 0)
+        self.confirm(node.sendtoaddress(self.nodes[0].getnewaddress(), 1))
+        node.walletlock()
+        assert_raises_jsonrpc(RPC_WALLET_PASSPHRASE_INCORRECT, None, node.walletpassphrase, NEW_PASSPHRASE, 60)
+        self.assert_locked(node)
+        node.walletpassphrase(THIRD_PASSPHRASE, 60)
+        assert_greater_than(node.getwalletinfo()['unlocked_until'], 0)
 
         info = node.pqwalletinfo()
         assert_equal((info['encryption'], info['kdf']), ('AES-256-CBC', 'SHA-512 EVP_BytesToKey'))

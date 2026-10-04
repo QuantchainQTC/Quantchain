@@ -178,7 +178,8 @@ BOOST_AUTO_TEST_CASE(mldsa_key_record_refused) {
     // first 16-byte block, so the padding and the size pass and VerifyPubKey refuses it.
     BOOST_CHECK(!Unlocks(master, pubkey, EncryptRecord(master, CKeyingMaterial(other.begin(), other.end()), other.GetPubKey())));
 
-    // The right public half after a damaged secret half: VerifyPubKey's signature check refuses it.
+    // The right public half after a damaged first byte, which is in rho: VerifyPubKey's signature check refuses it.
+    // Damage to K, s2 or t0 can pass that check, since a key damaged there can still sign validly.
     CKeyingMaterial damaged(secret);
     damaged[0] ^= 1;
     BOOST_CHECK(!Unlocks(master, pubkey, EncryptRecord(master, damaged, pubkey)));
@@ -209,7 +210,8 @@ BOOST_AUTO_TEST_CASE(mldsa_encrypt_keys_then_unlock) {
         const CPubKey pubkey = key.GetPubKey();
         CKey out;
         BOOST_REQUIRE(store.GetKey(pubkey.GetID(), out));
-        BOOST_CHECK(out.size() == key.size() && std::equal(key.begin(), key.end(), out.begin()));
+        // operator== compares the bytes and the compression flag, which CBitcoinSecret writes into an export.
+        BOOST_CHECK(out == key);
         const uint256 hash = GetRandHash();
         std::vector<unsigned char> sig;
         BOOST_CHECK(out.Sign(hash, sig) && pubkey.Verify(hash, sig));
