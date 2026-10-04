@@ -102,7 +102,7 @@ bool SolverNames(const CScript& spk, txnouttype& t)
 bool StandardWith(const CScript& spk, WitnessVersionMask mask)
 {
     txnouttype t;
-    return IsStandard(spk, t, /*witnessEnabled=*/true, mask);
+    return IsStandard(spk, t, mask);
 }
 
 //! One row of the table, transcribed from interpreter.cpp's predicates.
@@ -350,44 +350,39 @@ BOOST_AUTO_TEST_CASE(free_witness_versions_are_v11_through_v16)
         "from a design document");
 }
 
-// ⚠️ WITNESS v0 IS RELAY-STANDARD AND NOT SPENDABLE AS ITS NAME IMPLIES.
-// Solver names both v0 forms, so IsStandard accepts them with an empty mask (the
-// v2-v16 gate does not cover v0). The script layer disagrees with both:
+// WITNESS v0 IS NOT SPENDABLE AS SOLVER NAMES IT, SO IT IS NOT STANDARD.
+// Solver names both v0 forms. The script layer disagrees with both:
 //
 //   v0 <20>  P2WPKH-shaped. VerifyScript requires a 34-byte program for the
 //            Dilithium path, so a 22-byte script matches nothing and is rejected
-//            outright. The output relays, confirms, and can never be spent.
+//            outright.
 //   v0 <32>  P2WSH-shaped to Solver, but is_dilithium accepts OP_0 exactly like
 //            OP_1, so the script layer treats the program as SHA256(pubkey) and
 //            demands a Dilithium signature. A real script hash is not a pubkey
-//            hash, so those funds are gone too.
+//            hash.
 //
-// Exposure is narrow: utiladdress.cpp hardcodes witness version 1, so no address
-// encodes to v0 and only a hand-built scriptPubKey gets there. It is not zero,
-// because a generic Bitcoin library pointed at our HRP produces v0 P2WPKH by
-// default, and that is precisely what an exchange integrating from scratch
-// reaches for. Same family as the SDK builders that hardcoded the stagenet HRP.
-//
-// Pinned, not fixed. The fix is a policy change (refuse v0 the way v5-v9 are
-// refused while dormant), which is cheap and consensus-neutral, but the wallet
-// and script/standard.cpp still carry v0 plumbing and that wants its own look.
-// Bead v7xm F2.
-BOOST_AUTO_TEST_CASE(witness_v0_is_standard_but_unspendable)
+// IsStandard accepted both with an empty mask until bead trp6, so a v0 output
+// relayed, confirmed and could never be spent. utiladdress.cpp encodes only
+// witness v1, but a generic Bitcoin library produces v0 P2WPKH by default, and
+// soqucoin-tx builds v0 with its W flag. Policy now refuses v0 whatever the mask
+// says; unspendable_output_policy_tests drives the refusal through the mempool.
+// The script-layer half below is unchanged and keeps the v0/v1 aliasing visible.
+BOOST_AUTO_TEST_CASE(witness_v0_is_unspendable_and_not_standard)
 {
     const CScript keyhashShape   = Program(0, 20);   // OP_0 <20>, 22 bytes
     const CScript scripthashShape = Program(0, 32);  // OP_0 <32>, 34 bytes
 
-    BOOST_CHECK_MESSAGE(StandardWith(keyhashShape, 0),
-        "if v0 <20> has become non-standard the divergence is fixed and this test should be "
-        "updated rather than deleted");
-    BOOST_CHECK_MESSAGE(StandardWith(scripthashShape, 0),
-        "if v0 <32> has become non-standard the divergence is fixed");
+    WitnessVersionMask everything = 0;
+    for (int v = 0; v <= 16; ++v) everything |= WitnessVersionBit(v);
+    BOOST_CHECK_MESSAGE(!StandardWith(keyhashShape, everything),
+        "v0 <20> is relay-standard again, and nothing can spend it");
+    BOOST_CHECK_MESSAGE(!StandardWith(scripthashShape, everything),
+        "v0 <32> is relay-standard again, and a script hash cannot spend it");
 
     BOOST_CHECK_MESSAGE(
         ScriptVerdict(keyhashShape, SCRIPT_VERIFY_WITNESS) == SCRIPT_ERR_DISALLOWED_CLASSICAL_CRYPTO,
-        "a relay-standard v0 <20> output must at least fail CLOSED at the script layer. "
-        "Standard plus spendable-by-anyone would be the v5-v9 fund-loss shape again; "
-        "standard plus spendable-by-nobody is a burn, which is what this asserts");
+        "a v0 <20> output must fail CLOSED at the script layer. Spendable-by-anyone would be "
+        "the v5-v9 fund-loss shape for any such output a block already holds");
 
     // v0 <32> takes the Dilithium branch, so it fails on the signature rather
     // than on the shape. Different error, same practical outcome for a caller

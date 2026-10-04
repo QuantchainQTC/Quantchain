@@ -283,10 +283,10 @@ BOOST_AUTO_TEST_CASE(dormant_output_is_anyone_can_spend_nonstandard_and_activati
 
             // (3) relay refuses the shape while dormant.
             std::string reason;
-            BOOST_CHECK_MESSAGE(!IsStandardTx(CTransaction(fund), reason, true, 0) && reason == "scriptpubkey",
+            BOOST_CHECK_MESSAGE(!IsStandardTx(CTransaction(fund), reason, 0) && reason == "scriptpubkey",
                 r.name << " funding tx must be non-standard while dormant (got '" << reason << "')");
             if (r.solverNames) {
-                BOOST_CHECK_MESSAGE(IsStandardTx(CTransaction(fund), reason, true, WitnessVersionBit(r.version)),
+                BOOST_CHECK_MESSAGE(IsStandardTx(CTransaction(fund), reason, WitnessVersionBit(r.version)),
                     r.name << " funding tx must be standard once its version bit is active");
             }
 

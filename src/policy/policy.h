@@ -186,14 +186,12 @@ static const unsigned int STANDARD_LOCKTIME_VERIFY_FLAGS = LOCKTIME_VERIFY_SEQUE
 typedef uint32_t WitnessVersionMask;
 static inline WitnessVersionMask WitnessVersionBit(int version) { return (uint32_t)1 << version; }
 
-bool IsStandard(const CScript& scriptPubKey, txnouttype& whichType, const bool witnessEnabled = false,
-                WitnessVersionMask activeWitnessVersions = 0);
+bool IsStandard(const CScript& scriptPubKey, txnouttype& whichType, WitnessVersionMask activeWitnessVersions = 0);
     /**
      * Check for standard transaction types
      * @return True if all outputs (scriptPubKeys) use only standard transaction forms
      */
-bool IsStandardTx(const CTransaction& tx, std::string& reason, const bool witnessEnabled = false,
-                  WitnessVersionMask activeWitnessVersions = 0);
+bool IsStandardTx(const CTransaction& tx, std::string& reason, WitnessVersionMask activeWitnessVersions = 0);
     /**
      * Check for standard transaction types
      * @param[in] mapInputs    Map of previous transactions that have outputs we're spending

@@ -141,7 +141,7 @@ BOOST_AUTO_TEST_CASE(v2_output_is_never_relay_standard)
     txnouttype whichType;
     const WitnessVersionMask allVersionsActive = ~WitnessVersionMask(0);
 
-    BOOST_CHECK_MESSAGE(!IsStandard(spk, whichType, /*witnessEnabled=*/true, allVersionsActive),
+    BOOST_CHECK_MESSAGE(!IsStandard(spk, whichType, allVersionsActive),
         "a witness v2 output became relay-standard. Policy must not offer to propagate "
         "a shape that ConnectBlock refuses to create — and if Solver has learned the v2 "
         "form, that is a deliberate relay-policy change that has to be made together "

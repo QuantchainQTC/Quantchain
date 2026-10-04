@@ -32,28 +32,36 @@
      *   DUP CHECKSIG DROP ... repeated 100 times... OP_1
      */
 
-bool IsStandard(const CScript& scriptPubKey, txnouttype& whichType, const bool witnessEnabled,
-                WitnessVersionMask activeWitnessVersions)
+bool IsStandard(const CScript& scriptPubKey, txnouttype& whichType, WitnessVersionMask activeWitnessVersions)
 {
     std::vector<std::vector<unsigned char> > vSolutions;
     if (!Solver(scriptPubKey, whichType, vSolutions))
         return false;
 
-    if (whichType == TX_MULTISIG)
-    {
-        unsigned char m = vSolutions.front()[0];
-        unsigned char n = vSolutions.back()[0];
-        // Support up to x-of-3 multisig txns as standard
-        if (n < 1 || n > 3)
+    // Standard only where the script layer has a spend path. Solver still names
+    // the classical forms (pay-to-pubkey, pay-to-pubkey-hash, pay-to-script-hash,
+    // bare multisig) and both witness v0 forms, but VerifyScript refuses every
+    // scriptPubKey that is neither OP_RETURN nor a version opcode followed by a
+    // 32-byte push (SCRIPT_ERR_DISALLOWED_CLASSICAL_CRYPTO), and reads a 32-byte
+    // v0 program as the SHA256 of an ML-DSA-44 public key, which a witness script
+    // hash is not. Relayed, each would confirm as an output nobody can spend. A
+    // form Solver names later stays non-standard until it is listed here. Policy
+    // only: a block may still create these outputs. Bead trp6.
+    switch (whichType) {
+    case TX_NULL_DATA:
+        if (!fAcceptDatacarrier || scriptPubKey.size() > nMaxDatacarrierBytes)
             return false;
-        if (m < 1 || m > n)
-            return false;
-    } else if (whichType == TX_NULL_DATA &&
-               (!fAcceptDatacarrier || scriptPubKey.size() > nMaxDatacarrierBytes))
-          return false;
-
-    else if (!witnessEnabled && (whichType == TX_WITNESS_V0_KEYHASH || whichType == TX_WITNESS_V0_SCRIPTHASH))
+        break;
+    case TX_WITNESS_V1_SCRIPTHASH:
+    case TX_WITNESS_V5_AUTHORITY:
+    case TX_WITNESS_V6_COVENANT:
+    case TX_WITNESS_V7_USDSOQ:
+    case TX_WITNESS_V8_BTCSOQ:
+    case TX_WITNESS_V9_BTCSOQ_AUTHORITY:
+        break;
+    default:
         return false;
+    }
 
     // Reject witness versions v2-v16 at the policy layer UNLESS their consensus
     // rules are active on this chain right now.
@@ -82,11 +90,10 @@ bool IsStandard(const CScript& scriptPubKey, txnouttype& whichType, const bool w
         }
     }
 
-    return whichType != TX_NONSTANDARD;
+    return true;
 }
 
-bool IsStandardTx(const CTransaction& tx, std::string& reason, const bool witnessEnabled,
-                  WitnessVersionMask activeWitnessVersions)
+bool IsStandardTx(const CTransaction& tx, std::string& reason, WitnessVersionMask activeWitnessVersions)
 {
     if (tx.nVersion > CTransaction::MAX_STANDARD_VERSION || tx.nVersion < 1) {
         reason = "version";
@@ -125,7 +132,7 @@ bool IsStandardTx(const CTransaction& tx, std::string& reason, const bool witnes
     unsigned int nDataOut = 0;
     txnouttype whichType;
     BOOST_FOREACH(const CTxOut& txout, tx.vout) {
-        if (!::IsStandard(txout.scriptPubKey, whichType, witnessEnabled, activeWitnessVersions)) {
+        if (!::IsStandard(txout.scriptPubKey, whichType, activeWitnessVersions)) {
             reason = "scriptpubkey";
             return false;
         }
@@ -137,9 +144,6 @@ bool IsStandardTx(const CTransaction& tx, std::string& reason, const bool witnes
             // They serve as on-chain audit trail for USDSOQ operations.
         } else if (whichType == TX_WITNESS_V9_BTCSOQ_AUTHORITY) {
             // Same rule for the BTCSOQ authority marker (0-value by design).
-        } else if ((whichType == TX_MULTISIG) && (!fIsBareMultisigStd)) {
-            reason = "bare-multisig";
-            return false;
         } else if (txout.IsDust(nHardDustLimit)) {
             reason = "dust";
             return false;

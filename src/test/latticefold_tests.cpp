@@ -215,7 +215,7 @@ BOOST_AUTO_TEST_CASE(witness_v3_output_is_relay_nonstandard)
     BOOST_REQUIRE_EQUAL(v3out.size(), 34U);
 
     txnouttype whichType;
-    BOOST_CHECK_MESSAGE(!::IsStandard(v3out, whichType, /*witnessEnabled=*/true),
+    BOOST_CHECK_MESSAGE(!::IsStandard(v3out, whichType),
         "witness v3 must stay relay-nonstandard while DEPLOYMENT_LATTICEFOLD is "
         "inactive, otherwise v3 outputs are fundable AND anyone-can-spend");
 }

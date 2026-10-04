@@ -42,7 +42,7 @@ CScript WitnessProgram(int version)
 bool StandardWith(const CScript& spk, WitnessVersionMask mask)
 {
     txnouttype whichType;
-    return IsStandard(spk, whichType, /*witnessEnabled=*/true, mask);
+    return IsStandard(spk, whichType, mask);
 }
 
 } // namespace
@@ -102,20 +102,23 @@ BOOST_AUTO_TEST_CASE(unrecognised_versions_ignore_the_mask_entirely)
     }
 }
 
-// The base forms must be unaffected by the change.
-BOOST_AUTO_TEST_CASE(v0_and_v1_unaffected)
+// v1 is the single-key Dilithium form and is not part of the gated range. v0 is
+// standard in neither form, whatever the mask says, because the script layer
+// cannot spend it as Solver names it (bead trp6; unspendable_output_policy_tests).
+BOOST_AUTO_TEST_CASE(v1_is_standard_and_v0_is_not)
 {
+    BOOST_CHECK(StandardWith(WitnessProgram(1), 0));
+
+    WitnessVersionMask everything = 0;
+    for (int v = 0; v <= 16; ++v) everything |= WitnessVersionBit(v);
+
     CScript v0keyhash;
     v0keyhash << OP_0 << std::vector<unsigned char>(20, 0x02);
-    txnouttype t;
-    BOOST_CHECK(IsStandard(v0keyhash, t, /*witnessEnabled=*/true, 0));
+    BOOST_CHECK(!StandardWith(v0keyhash, everything));
 
     CScript v0scripthash;
     v0scripthash << OP_0 << std::vector<unsigned char>(32, 0x03);
-    BOOST_CHECK(IsStandard(v0scripthash, t, /*witnessEnabled=*/true, 0));
-
-    // v1 is the single-key Dilithium form and is not part of the gated range.
-    BOOST_CHECK(StandardWith(WitnessProgram(1), 0));
+    BOOST_CHECK(!StandardWith(v0scripthash, everything));
 }
 
 BOOST_AUTO_TEST_SUITE_END()
