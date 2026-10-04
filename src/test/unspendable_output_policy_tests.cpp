@@ -143,6 +143,36 @@ BOOST_AUTO_TEST_CASE(a_block_may_still_create_them_and_no_spend_connects)
     }
 }
 
+// A reorganisation sends a disconnected block's transactions back through
+// AcceptToMemoryPool. A payment to one of the six forms is dropped there; a
+// payment to witness v1 from the same block returns to the mempool.
+BOOST_AUTO_TEST_CASE(a_disconnected_block_returns_none_of_them_to_the_mempool)
+{
+    const std::vector<Form> forms = UnspendableForms();
+    std::vector<CMutableTransaction> txns;
+    for (size_t i = 0; i < forms.size(); ++i)
+        txns.push_back(Pay(coinbaseTxns[i], forms[i].spk));
+    const CMutableTransaction control = Pay(coinbaseTxns[forms.size()], coinbaseSpk);
+    txns.push_back(control);
+
+    const int height = chainActive.Height();
+    CreateAndProcessBlock(txns, coinbaseSpk);
+    BOOST_REQUIRE_EQUAL(chainActive.Height(), height + 1);
+    {
+        LOCK(cs_main);
+        CValidationState state;
+        BOOST_REQUIRE(InvalidateBlock(state, Params(), chainActive.Tip()));
+        ActivateBestChain(state, Params());
+    }
+    BOOST_REQUIRE_EQUAL(chainActive.Height(), height);
+
+    BOOST_CHECK_MESSAGE(mempool.exists(control.GetHash()),
+        "the witness v1 payment must return to the mempool when its block is disconnected");
+    for (size_t i = 0; i < forms.size(); ++i)
+        BOOST_CHECK_MESSAGE(!mempool.exists(txns[i].GetHash()),
+            "a payment to " + forms[i].name + " returned to the mempool when its block was disconnected");
+}
+
 // The one v0 form the script layer can release is a 32-byte program that is
 // the SHA256 of an ML-DSA-44 key. Its spend still connects in a block. Through
 // the mempool that spend was refused before this change, because
