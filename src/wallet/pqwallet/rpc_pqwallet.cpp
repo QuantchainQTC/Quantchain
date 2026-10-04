@@ -7,24 +7,26 @@
  * @brief RPC commands for post-quantum wallet operations
  *
  * Provides CLI/RPC interface to PQ wallet functionality:
- * - pqgetnewaddress: Generate new Dilithium address
- * - pqgetaddressinfo: Get address details
- * - pqsignmessage: Sign message with Dilithium
- * - pqverifymessage: Verify Dilithium signature
- * - pqgetkeyinfo: Get key derivation info
+ * - pqvalidateaddress: Validate an address for this node's network
+ * - pqestimatefeerate: Estimate verification cost
+ * - pqwalletinfo: Get wallet library info
+ * - pqestimatefee: Estimate fee rate and L2 channel fees
+ * - pqchannelreserve: Calculate L2 channel reserves
+ * - pqselectcoins: Simulate coin selection
  *
  * Design follows Bitcoin Core RPC patterns for auditor familiarity.
  *
  * @see doc/WALLET_API_SPEC.md for API documentation
  */
 
+#include "chainparams.h"
+#include "pubkey.h"
 #include "rpc/server.h"
-#include "wallet/pqwallet/pqaddress.h"
+#include "utiladdress.h"
+#include "utilstrencodings.h"
 #include "wallet/pqwallet/pqcoinselection.h"
 #include "wallet/pqwallet/pqcost.h"
 #include "wallet/pqwallet/pqfee.h"
-#include "wallet/pqwallet/pqkeys.h"
-#include "wallet/pqwallet/pqwallet.h"
 
 #include <univalue.h>
 
@@ -33,138 +35,50 @@ using namespace soqucoin::pqwallet;
 namespace
 {
 
-// Error codes for PQ wallet operations
-constexpr int RPC_PQ_WALLET_ERROR = -4001;
-constexpr int RPC_PQ_ADDRESS_ERROR = -4002;
-// Reserved for future pqsignmessage/pqverifymessage commands:
-// constexpr int RPC_PQ_SIGN_ERROR = -4003;
-// constexpr int RPC_PQ_VERIFY_ERROR = -4004;
-
-/**
- * @brief pqgetnewaddress - Generate new post-quantum address
- *
- * Returns a new Bech32m address secured by Dilithium signature scheme.
- */
-UniValue pqgetnewaddress(const JSONRPCRequest& request)
+/** pqvalidateaddress's name for this node's network: the network ID, with main and test spelled out. */
+std::string NetworkName()
 {
-    if (request.fHelp || request.params.size() > 1) {
-        throw std::runtime_error(
-            "pqgetnewaddress ( \"network\" )\n"
-            "\nGenerate a new post-quantum Dilithium address.\n"
-            "\nArguments:\n"
-            "1. \"network\"     (string, optional, default=\"testnet\") Network: mainnet, testnet, stagenet\n"
-            "\nResult:\n"
-            "{\n"
-            "  \"address\": \"sq1...\",        (string) The new Bech32m address\n"
-            "  \"pubkey_hash\": \"...\",       (string) SHA-256 hash of public key\n"
-            "  \"network\": \"testnet\",       (string) Network identifier\n"
-            "  \"type\": \"P2PQ\"              (string) Address type (P2PQ = Pay-to-Post-Quantum)\n"
-            "}\n"
-            "\nExamples:\n" +
-            HelpExampleCli("pqgetnewaddress", "") + HelpExampleCli("pqgetnewaddress", "\"mainnet\"") + HelpExampleRpc("pqgetnewaddress", "\"testnet\""));
-    }
-
-    // Parse network parameter
-    Network network = Network::Testnet;
-    if (!request.params.empty()) {
-        std::string netStr = request.params[0].get_str();
-        if (netStr == "mainnet") {
-            network = Network::Mainnet;
-        } else if (netStr == "stagenet") {
-            network = Network::Stagenet;
-        } else if (netStr != "testnet") {
-            throw JSONRPCError(RPC_INVALID_PARAMETER,
-                "Invalid network: must be mainnet, testnet, or stagenet");
-        }
-    }
-
-    // Generate new keypair
-    auto keypair = PQKeyPair::Generate();
-    if (!keypair) {
-        throw JSONRPCError(RPC_PQ_WALLET_ERROR, "Failed to generate Dilithium keypair");
-    }
-
-    // Get public key and hash
-    auto pubkey = keypair->GetPublicKey();
-    auto pubkeyHash = PQAddress::HashPublicKey(pubkey);
-
-    // Encode address
-    std::string address = PQAddress::Encode(pubkey, network, AddressType::P2PQ);
-    if (address.empty()) {
-        throw JSONRPCError(RPC_PQ_ADDRESS_ERROR, "Failed to encode address");
-    }
-
-    // Build result
-    UniValue result(UniValue::VOBJ);
-    result.pushKV("address", address);
-
-    // Convert hash to hex string
-    std::string hashHex;
-    for (uint8_t b : pubkeyHash) {
-        char buf[3];
-        snprintf(buf, sizeof(buf), "%02x", b);
-        hashHex += buf;
-    }
-    result.pushKV("pubkey_hash", hashHex);
-
-    result.pushKV("network", network == Network::Mainnet ? "mainnet" :
-                             network == Network::Testnet ? "testnet" :
-                                                           "stagenet");
-    result.pushKV("type", "P2PQ");
-
-    return result;
+    const std::string id = Params().NetworkIDString();
+    if (id == CBaseChainParams::MAIN) return "mainnet";
+    if (id == CBaseChainParams::TESTNET) return "testnet";
+    return id;
 }
 
 /**
  * @brief pqvalidateaddress - Validate a post-quantum address
+ *
+ * Decodes with DecodeDestination and this network's prefix, the decoder sendtoaddress uses.
  */
 UniValue pqvalidateaddress(const JSONRPCRequest& request)
 {
     if (request.fHelp || request.params.size() != 1) {
         throw std::runtime_error(
             "pqvalidateaddress \"address\"\n"
-            "\nValidate a Soqucoin post-quantum address.\n"
+            "\nValidate a Soqucoin post-quantum address for this node's network.\n"
             "\nArguments:\n"
             "1. \"address\"     (string, required) The Bech32m address to validate\n"
             "\nResult:\n"
             "{\n"
-            "  \"isvalid\": true|false,       (boolean) If the address is valid\n"
-            "  \"network\": \"testnet\",       (string) Detected network\n"
+            "  \"isvalid\": true|false,       (boolean) If the address is Bech32m with this network's prefix, witness version 1 and a 32-byte program\n"
+            "  \"network\": \"mainnet\",       (string) This node's network: mainnet, testnet, stagenet or regtest (mainnet, testnet and regtest share the sq prefix)\n"
             "  \"type\": \"P2PQ\",             (string) Address type\n"
-            "  \"pubkey_hash\": \"...\",       (string) Decoded public key hash\n"
+            "  \"pubkey_hash\": \"...\",       (string) The 32-byte witness program, the SHA-256 of the public key\n"
             "  \"error\": \"...\"              (string) Error message if invalid\n"
             "}\n"
             "\nExamples:\n" +
-            HelpExampleCli("pqvalidateaddress", "\"tsq1...\"") + HelpExampleRpc("pqvalidateaddress", "\"sq1...\""));
+            HelpExampleCli("pqvalidateaddress", "\"sq1p...\"") + HelpExampleRpc("pqvalidateaddress", "\"sq1p...\""));
     }
 
-    std::string address = request.params[0].get_str();
+    const CTxDestination dest = DecodeDestination(request.params[0].get_str(), Params().Bech32HRP());
+    const WitnessV1ScriptHash* program = boost::get<WitnessV1ScriptHash>(&dest);
 
     UniValue result(UniValue::VOBJ);
+    result.pushKV("isvalid", program != nullptr);
 
-    bool isValid = PQAddress::IsValid(address);
-    result.pushKV("isvalid", isValid);
-
-    if (isValid) {
-        Network network = PQAddress::DetectNetwork(address);
-        result.pushKV("network", network == Network::Mainnet ? "mainnet" :
-                                 network == Network::Testnet ? "testnet" :
-                                                               "stagenet");
-
-        auto info = PQAddress::Decode(address);
-        if (info.valid) {
-            // Convert hash to hex
-            std::string hashHex;
-            for (uint8_t b : info.hash) {
-                char buf[3];
-                snprintf(buf, sizeof(buf), "%02x", b);
-                hashHex += buf;
-            }
-            result.pushKV("pubkey_hash", hashHex);
-            result.pushKV("type", info.type == AddressType::P2PQ     ? "P2PQ" :
-                                  info.type == AddressType::P2PQ_PAT ? "P2PQ_PAT" :
-                                                                       "P2SH_PQ");
-        }
+    if (program) {
+        result.pushKV("network", NetworkName());
+        result.pushKV("pubkey_hash", HexStr(program->begin(), program->end()));
+        result.pushKV("type", "P2PQ");
     } else {
         result.pushKV("error", "Invalid address format");
     }
@@ -579,7 +493,6 @@ UniValue pqselectcoins(const JSONRPCRequest& request)
 // RPC command table for PQ wallet
 static const CRPCCommand pqWalletCommands[] = {
     // category    name                 actor               okSafe  argNames
-    {"pqwallet", "pqgetnewaddress", &pqgetnewaddress, true, {"network"}},
     {"pqwallet", "pqvalidateaddress", &pqvalidateaddress, true, {"address"}},
     {"pqwallet", "pqestimatefeerate", &pqestimatefeerate, true, {"num_inputs", "num_outputs"}},
     {"pqwallet", "pqwalletinfo", &pqwalletinfo, true, {}},

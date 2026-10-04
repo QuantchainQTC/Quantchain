@@ -171,7 +171,7 @@ run_leaks_analysis() {
     
     # Generate address (tests wallet key generation)
     for i in {1..5}; do
-        "${SOQUCOIN_CLI}" -regtest -rpcuser=test -rpcpassword=test -rpcport=18443 pqgetnewaddress 2>/dev/null || true
+        "${SOQUCOIN_CLI}" -regtest -rpcuser=test -rpcpassword=test -rpcport=18443 getnewaddress 2>/dev/null || true
     done
     
     # Run leaks tool

@@ -18,10 +18,12 @@ class CRPCTable;
  * @brief Register PQ wallet RPC commands
  *
  * Registers the following commands:
- * - pqgetnewaddress: Generate new Dilithium address
  * - pqvalidateaddress: Validate PQ address
  * - pqestimatefeerate: Estimate verification cost
  * - pqwalletinfo: Get wallet library info
+ * - pqestimatefee: Estimate fee rate and L2 channel fees
+ * - pqchannelreserve: Calculate L2 channel reserves
+ * - pqselectcoins: Simulate coin selection
  *
  * @param t RPC table to register commands with
  */

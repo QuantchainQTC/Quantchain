@@ -112,38 +112,36 @@ fi
 log ""
 
 # =============================================================================
-# Test 2: Generate New PQ Address
+# Test 2: Generate New Address
 # =============================================================================
 
-log "--- Test 2: Generate New PQ Address ---"
+log "--- Test 2: Generate New Address ---"
 
-if NEW_ADDR=$($CLI -$NETWORK pqgetnewaddress 2>&1); then
-    log "Response: $NEW_ADDR"
-    
-    # Extract address from JSON
-    ADDRESS=$(echo "$NEW_ADDR" | grep -o '"address": *"[^"]*"' | cut -d'"' -f4)
+if NEW_ADDR=$($CLI -$NETWORK getnewaddress 2>&1); then
+    ADDRESS="$NEW_ADDR"
     log "Generated address: $ADDRESS"
-    
-    # Check address prefix
-    if [[ "$NETWORK" == "testnet" ]] && [[ "$ADDRESS" == tsq1* ]]; then
-        pass "Testnet address has correct prefix (tsq1)"
-    elif [[ "$NETWORK" == "stagenet" ]] && [[ "$ADDRESS" == ssq1* ]]; then
-        pass "Stagenet address has correct prefix (ssq1)"
-    elif [[ "$NETWORK" == "mainnet" ]] && [[ "$ADDRESS" == sq1* ]]; then
-        pass "Mainnet address has correct prefix (sq1)"
+
+    # Check address prefix: stagenet's is ssq, every other network's sq; p is witness version 1
+    if [[ "$NETWORK" == "stagenet" ]]; then
+        EXPECTED_PREFIX="ssq1p"
     else
-        fail "Address prefix mismatch: $ADDRESS"
+        EXPECTED_PREFIX="sq1p"
     fi
-    
+    if [[ "$ADDRESS" == ${EXPECTED_PREFIX}* ]]; then
+        pass "Address has the network's prefix ($EXPECTED_PREFIX)"
+    else
+        fail "Address prefix mismatch: got $ADDRESS, expected ${EXPECTED_PREFIX}..."
+    fi
+
     # Check address length (Bech32m with 32-byte hash)
     ADDR_LEN=${#ADDRESS}
-    if [[ $ADDR_LEN -ge 50 && $ADDR_LEN -le 62 ]]; then
+    if [[ $ADDR_LEN -ge 50 && $ADDR_LEN -le 63 ]]; then
         pass "Address length is valid ($ADDR_LEN characters)"
     else
         fail "Address length invalid: $ADDR_LEN"
     fi
 else
-    fail "pqgetnewaddress failed: $NEW_ADDR"
+    fail "getnewaddress failed: $NEW_ADDR"
 fi
 log ""
 
@@ -238,18 +236,20 @@ log ""
 
 log "--- Test 6: Address Uniqueness ---"
 
-ADDR1=$($CLI -$NETWORK pqgetnewaddress 2>&1 | grep -o '"address": *"[^"]*"' | cut -d'"' -f4)
-ADDR2=$($CLI -$NETWORK pqgetnewaddress 2>&1 | grep -o '"address": *"[^"]*"' | cut -d'"' -f4)
-ADDR3=$($CLI -$NETWORK pqgetnewaddress 2>&1 | grep -o '"address": *"[^"]*"' | cut -d'"' -f4)
+if ADDR1=$($CLI -$NETWORK getnewaddress 2>&1) &&
+    ADDR2=$($CLI -$NETWORK getnewaddress 2>&1) &&
+    ADDR3=$($CLI -$NETWORK getnewaddress 2>&1); then
+    log "Address 1: $ADDR1"
+    log "Address 2: $ADDR2"
+    log "Address 3: $ADDR3"
 
-log "Address 1: $ADDR1"
-log "Address 2: $ADDR2"
-log "Address 3: $ADDR3"
-
-if [[ "$ADDR1" != "$ADDR2" && "$ADDR2" != "$ADDR3" && "$ADDR1" != "$ADDR3" ]]; then
-    pass "All generated addresses are unique"
+    if [[ "$ADDR1" != "$ADDR2" && "$ADDR2" != "$ADDR3" && "$ADDR1" != "$ADDR3" ]]; then
+        pass "All generated addresses are unique"
+    else
+        fail "Duplicate addresses generated (security issue!)"
+    fi
 else
-    fail "Duplicate addresses generated (security issue!)"
+    fail "getnewaddress failed: ${ADDR3:-${ADDR2:-$ADDR1}}"
 fi
 log ""
 
@@ -271,37 +271,6 @@ if WALLET_INFO=$($CLI -$NETWORK getwalletinfo 2>&1); then
     pass "Standard getwalletinfo works"
 else
     fail "Standard getwalletinfo failed"
-fi
-log ""
-
-# =============================================================================
-# Test 8: Network-Specific Prefixes
-# =============================================================================
-
-log "--- Test 8: Network Prefix Verification ---"
-
-case "$NETWORK" in
-    testnet)
-        EXPECTED_PREFIX="tsq1"
-        ;;
-    stagenet)
-        EXPECTED_PREFIX="ssq1"
-        ;;
-    *)
-        EXPECTED_PREFIX="sq1"
-        ;;
-esac
-
-# Generate with explicit network parameter
-if EXPLICIT_ADDR=$($CLI -$NETWORK pqgetnewaddress "$NETWORK" 2>&1); then
-    ADDR=$(echo "$EXPLICIT_ADDR" | grep -o '"address": *"[^"]*"' | cut -d'"' -f4)
-    if [[ "$ADDR" == ${EXPECTED_PREFIX}* ]]; then
-        pass "Explicit network parameter produces correct prefix ($EXPECTED_PREFIX)"
-    else
-        fail "Explicit network parameter failed: got $ADDR, expected ${EXPECTED_PREFIX}..."
-    fi
-else
-    fail "pqgetnewaddress with network param failed"
 fi
 log ""
 
