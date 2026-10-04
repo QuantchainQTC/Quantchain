@@ -15,6 +15,7 @@
 #include <utility>
 #include <vector>
 
+#include <boost/algorithm/string/case_conv.hpp>
 #include <boost/test/unit_test.hpp>
 
 #include <univalue.h>
@@ -66,6 +67,7 @@ static std::vector<uint8_t> WitnessData(uint8_t version, const std::vector<uint8
 
 BOOST_AUTO_TEST_CASE(pqvalidateaddress_decodes_with_the_network_prefix)
 {
+    const std::string fixture_network = Params().NetworkIDString();
     const WitnessV1ScriptHash program(uint256S("6a09e667bb67ae853c6ef372a54ff53a510e527f9b05688c1f83d9ab5be0cd19"));
     const std::vector<uint8_t> bytes(program.begin(), program.end());
     const std::vector<std::pair<std::string, std::string> > networks{
@@ -84,10 +86,18 @@ BOOST_AUTO_TEST_CASE(pqvalidateaddress_decodes_with_the_network_prefix)
         BOOST_CHECK_EQUAL(address, bech32::Encode(bech32::Encoding::BECH32M, hrp, WitnessData(1, bytes)));
         const UniValue valid = PQValidateAddress(address);
         BOOST_CHECK(find_value(valid, "isvalid").get_bool());
-        BOOST_CHECK_EQUAL(find_value(valid, "network").get_str(), network.second);
-        BOOST_CHECK_EQUAL(find_value(valid, "pubkey_hash").get_str(), HexStr(bytes));
-        BOOST_CHECK_EQUAL(find_value(valid, "type").get_str(), "P2PQ");
+        BOOST_CHECK_EQUAL(find_value(valid, "network").getValStr(), network.second);
+        BOOST_CHECK_EQUAL(find_value(valid, "pubkey_hash").getValStr(), HexStr(bytes));
+        BOOST_CHECK_EQUAL(find_value(valid, "type").getValStr(), "P2PQ");
         BOOST_CHECK(find_value(valid, "error").isNull());
+
+        // Upper case decodes to the same program; bech32::Decode refuses mixed case.
+        const UniValue upper = PQValidateAddress(boost::to_upper_copy(address));
+        BOOST_CHECK(find_value(upper, "isvalid").get_bool());
+        BOOST_CHECK_EQUAL(find_value(upper, "pubkey_hash").getValStr(), HexStr(bytes));
+        std::string mixed_case = address;
+        mixed_case[0] = 'S';
+        BOOST_CHECK(!IsValid(mixed_case));
 
         // The layout pqgetnewaddress returned: the version byte converted with the program, so the first group
         // reads as witness version 0 under a bech32m checksum.
@@ -97,7 +107,7 @@ BOOST_AUTO_TEST_CASE(pqvalidateaddress_decodes_with_the_network_prefix)
         BOOST_CHECK_EQUAL(old_layout.substr(hrp.size(), 2), "1q");
         const UniValue refused = PQValidateAddress(old_layout);
         BOOST_CHECK(!find_value(refused, "isvalid").get_bool());
-        BOOST_CHECK_EQUAL(find_value(refused, "error").get_str(), "Invalid address format");
+        BOOST_CHECK_EQUAL(find_value(refused, "error").getValStr(), "Invalid address format");
         BOOST_CHECK(find_value(refused, "pubkey_hash").isNull());
         BOOST_CHECK(find_value(refused, "network").isNull());
 
@@ -115,7 +125,7 @@ BOOST_AUTO_TEST_CASE(pqvalidateaddress_decodes_with_the_network_prefix)
         BOOST_CHECK(!IsValid(bech32::Encode(bech32::Encoding::BECH32M, hrp, WitnessData(1, long_program))));
         BOOST_CHECK(!IsValid(bech32::Encode(bech32::Encoding::BECH32, hrp, WitnessData(1, bytes))));
     }
-    SelectParams(CBaseChainParams::MAIN);
+    SelectParams(fixture_network);
 }
 
 BOOST_AUTO_TEST_CASE(pqgetnewaddress_is_not_registered)

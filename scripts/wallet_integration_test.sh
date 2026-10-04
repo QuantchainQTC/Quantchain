@@ -236,9 +236,9 @@ log ""
 
 log "--- Test 6: Address Uniqueness ---"
 
-ADDR1=$($CLI -$NETWORK getnewaddress 2>&1)
-ADDR2=$($CLI -$NETWORK getnewaddress 2>&1)
-ADDR3=$($CLI -$NETWORK getnewaddress 2>&1)
+ADDR1=$($CLI -$NETWORK getnewaddress 2>&1) || true
+ADDR2=$($CLI -$NETWORK getnewaddress 2>&1) || true
+ADDR3=$($CLI -$NETWORK getnewaddress 2>&1) || true
 
 log "Address 1: $ADDR1"
 log "Address 2: $ADDR2"

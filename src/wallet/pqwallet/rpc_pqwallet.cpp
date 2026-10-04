@@ -38,7 +38,7 @@ namespace
 /** pqvalidateaddress's name for this node's network: the network ID, with main and test spelled out. */
 std::string NetworkName()
 {
-    const std::string& id = Params().NetworkIDString();
+    const std::string id = Params().NetworkIDString();
     if (id == CBaseChainParams::MAIN) return "mainnet";
     if (id == CBaseChainParams::TESTNET) return "testnet";
     return id;
