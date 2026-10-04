@@ -6,7 +6,7 @@ This document lists the protocol features that are implemented by Soqucoin Core
 
 ### From Bitcoin
 
-* [`BIP 11`](https://github.com/bitcoin/bips/blob/master/bip-0011.mediawiki): Multisig outputs are standard since **v1.4.0**.
+* [`BIP 11`](https://github.com/bitcoin/bips/blob/master/bip-0011.mediawiki): Multisig outputs were standard from **v1.4.0**. They are no longer standard: the script layer cannot spend them.
 * [`BIP 13`](https://github.com/bitcoin/bips/blob/master/bip-0013.mediawiki): The address format for P2SH addresses has been implemented since **v1.0.0**.
 * [`BIP 14`](https://github.com/bitcoin/bips/blob/master/bip-0014.mediawiki): The subversion string is being used as User Agent since **v1.0.0**.
 * [`BIP 16`](https://github.com/bitcoin/bips/blob/master/bip-0016.mediawiki): The pay-to-script-hash evaluation rules have been implemented since **v1.6.0**.
