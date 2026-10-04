@@ -117,30 +117,38 @@ BOOST_AUTO_TEST_CASE(the_mempool_refuses_every_form_nothing_can_spend)
 
 // Consensus is unchanged: a block may still create each form, and no spend of
 // one connects, not even one the key holder signs over the output's own script.
+// A witness v1 payment in the same block, spent the same way, connects.
 BOOST_AUTO_TEST_CASE(a_block_may_still_create_them_and_no_spend_connects)
 {
     const std::vector<Form> forms = UnspendableForms();
     std::vector<CMutableTransaction> pays;
     for (size_t i = 0; i < forms.size(); ++i)
         pays.push_back(Pay(coinbaseTxns[i], forms[i].spk));
+    pays.push_back(Pay(coinbaseTxns[forms.size()], coinbaseSpk));
 
     const int height = chainActive.Height();
     CreateAndProcessBlock(pays, coinbaseSpk);
     BOOST_REQUIRE_MESSAGE(chainActive.Height() == height + 1,
         "a block creating the six forms must connect: this change is policy only");
 
-    for (size_t i = 0; i < forms.size(); ++i) {
+    // Spend output 0 of pays[i], signed by the key over `spk`.
+    auto spendOf = [&](size_t i, const CScript& spk, const CScript& redeemScript) {
         const CAmount value = pays[i].vout[0].nValue;
         CMutableTransaction spend;
         spend.nVersion = 2;
         spend.vin.push_back(CTxIn(COutPoint(pays[i].GetHash(), 0), CScript(), CTxIn::SEQUENCE_FINAL));
         spend.vout.push_back(CTxOut(value - FEE, coinbaseSpk));
-        SignInput(spend, 0, forms[i].spk, value);
-        if (!forms[i].redeemScript.empty())
-            spend.vin[0].scriptSig = CScript() << ToByteVector(forms[i].redeemScript);
-        BOOST_CHECK_MESSAGE(!BlockIsValid({spend}),
+        SignInput(spend, 0, spk, value);
+        if (!redeemScript.empty())
+            spend.vin[0].scriptSig = CScript() << ToByteVector(redeemScript);
+        return spend;
+    };
+
+    BOOST_REQUIRE_MESSAGE(BlockIsValid({spendOf(forms.size(), coinbaseSpk, CScript())}),
+        "the witness v1 control's spend did not connect, so the refusals below would prove nothing");
+    for (size_t i = 0; i < forms.size(); ++i)
+        BOOST_CHECK_MESSAGE(!BlockIsValid({spendOf(i, forms[i].spk, forms[i].redeemScript)}),
             "a spend of " + forms[i].name + " connected; the script layer is meant to refuse it");
-    }
 }
 
 // A reorganisation sends a disconnected block's transactions back through
