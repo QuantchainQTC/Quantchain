@@ -20,6 +20,8 @@
 // CRYPTO_PUBLICKEYBYTES = 1312
 // CRYPTO_BYTES (Signature) = 2420
 
+static_assert(CKey::SIZE == CRYPTO_SECRETKEYBYTES + CRYPTO_PUBLICKEYBYTES, "keydata holds the secret key followed by the public key");
+
 bool CKey::Check(const unsigned char* vch)
 {
     // Minimal check for validity.

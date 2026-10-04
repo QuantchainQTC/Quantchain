@@ -50,11 +50,14 @@ private:
     bool static Check(const unsigned char* vch);
 
 public:
+    //! Size of keydata: the ML-DSA-44 secret key (2560 bytes) followed by its public key (1312 bytes).
+    static constexpr unsigned int SIZE = 3872;
+
     //! Construct an invalid private key.
     CKey() : fValid(false), fCompressed(false)
     {
         // Important: vch must be 3872 bytes in length (SK + PK) to not break serialization
-        keydata.resize(3872);
+        keydata.resize(SIZE);
     }
 
     //! Destructor (again necessary because of memlocking).
