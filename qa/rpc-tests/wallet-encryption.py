@@ -8,7 +8,7 @@
 encryptwallet, walletpassphrase, walletlock and walletpassphrasechange on node 1, across restarts: a wrong
 passphrase is refused and the wallet stays locked; the right one unlocks it and it spends, including from the
 key encryptwallet put in the key pool; a timed unlock locks it again; after walletpassphrasechange only the new
-passphrase unlocks it.
+passphrase unlocks it. pqwalletinfo names the cipher and key derivation encryptwallet uses.
 
 ENCRYPT_SOQUCOIND, when set, is the binary node 1 runs while encryptwallet executes, so that this build opens a
 wallet another build encrypted. The key pool check is skipped then.
@@ -115,6 +115,10 @@ class WalletEncryptionTest(BitcoinTestFramework):
         self.assert_locked(node)
         node.walletpassphrase(NEW_PASSPHRASE, 60)
         self.confirm(node.sendtoaddress(self.nodes[0].getnewaddress(), 1))
+
+        info = node.pqwalletinfo()
+        assert_equal((info['encryption'], info['kdf']), ('AES-256-CBC', 'SHA-512 EVP_BytesToKey'))
+        assert 'kdf_params' not in info
 
 
 if __name__ == '__main__':

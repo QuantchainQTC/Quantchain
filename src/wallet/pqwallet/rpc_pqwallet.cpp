@@ -277,8 +277,8 @@ UniValue pqwalletinfo(const JSONRPCRequest& request)
             "  \"version\": \"1.0\",           (string) Wallet library version\n"
             "  \"dilithium_mode\": \"ML-DSA-44\", (string) Dilithium security level\n"
             "  \"address_format\": \"Bech32m\", (string) Address encoding format\n"
-            "  \"encryption\": \"AES-256-CBC+HMAC\", (string) File encryption method\n"
-            "  \"kdf\": \"PBKDF2-SHA256\",     (string) Key derivation function\n"
+            "  \"encryption\": \"AES-256-CBC\",  (string) Cipher encryptwallet applies to the wallet's private keys\n"
+            "  \"kdf\": \"SHA-512 EVP_BytesToKey\", (string) Passphrase key derivation; the iteration count is set per wallet when its passphrase is set\n"
             "  \"features\": {...}            (object) Feature status\n"
             "}\n"
             "\nExamples:\n" +
@@ -291,9 +291,8 @@ UniValue pqwalletinfo(const JSONRPCRequest& request)
     result.pushKV("pubkey_size", 1312);
     result.pushKV("signature_size", 2420);
     result.pushKV("address_format", "Bech32m");
-    result.pushKV("encryption", "AES-256-CBC+HMAC");
-    result.pushKV("kdf", "Argon2id");
-    result.pushKV("kdf_params", "t=3,m=64MB,p=4");
+    result.pushKV("encryption", "AES-256-CBC");
+    result.pushKV("kdf", "SHA-512 EVP_BytesToKey");
 
     UniValue features(UniValue::VOBJ);
     features.pushKV("pat_aggregation", true);
