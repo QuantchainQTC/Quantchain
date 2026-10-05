@@ -45,13 +45,13 @@ for bin in "$@"; do
   count=0
   while IFS= read -r lib; do
     count=$((count + 1))
+    # A "." or ".." segment can lead out of /usr/lib or /System/Library.
     case "$lib" in
-      /usr/lib/*|/System/Library/*) ;;
-      *)
-        echo "$bin: loads $lib" >&2
-        status=1
-        ;;
+      */./*|*/../*) ;;
+      /usr/lib/*|/System/Library/*) continue ;;
     esac
+    echo "$bin: loads $lib" >&2
+    status=1
   done < <(otool -L "$bin" | awk -F' [(]compatibility version' '/^\t/ {sub(/^\t/, "", $1); print $1}')
   if [ "$count" -eq 0 ]; then
     echo "$bin: no libraries parsed from otool -L" >&2
