@@ -298,14 +298,22 @@ void CBitcoinSecret::SetKey(const CKey& vchSecret)
 CKey CBitcoinSecret::GetKey()
 {
     CKey ret;
-    assert(vchData.size() >= 32);
-    ret.Set(vchData.begin(), vchData.begin() + 32, vchData.size() > 32 && vchData[32] == 1);
+    if (vchData.size() == CKey::SEED_SIZE + 1 && vchData[CKey::SEED_SIZE] == 0x02) {
+        // Seed form: a 32-byte FIPS 204 seed and the 0x02 marker. Expand it.
+        ret.SetSeed(vchData.data());
+    } else if (vchData.size() == CKey::SIZE) {
+        // Expanded form: the full ML-DSA-44 key pair (secret key || public key).
+        ret.Set(vchData.begin(), vchData.begin() + CKey::SIZE, false);
+    }
+    // Any other length, including a classical 32-byte or 33-byte 0x01 WIF,
+    // leaves ret invalid.
     return ret;
 }
 
 bool CBitcoinSecret::IsValid() const
 {
-    bool fExpectedFormat = vchData.size() == 32 || (vchData.size() == 33 && vchData[32] == 1);
+    bool fExpectedFormat = (vchData.size() == CKey::SEED_SIZE + 1 && vchData[CKey::SEED_SIZE] == 0x02) ||
+                           (vchData.size() == CKey::SIZE);
     bool fCorrectVersion = vchVersion == Params().Base58Prefix(CChainParams::SECRET_KEY);
     return fExpectedFormat && fCorrectVersion;
 }

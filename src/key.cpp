@@ -10,6 +10,7 @@
 #include "crypto/hmac_sha512.h"
 #include "pubkey.h"
 #include "random.h"
+#include "support/cleanse.h"
 #include "util.h"
 
 #include "crypto/dilithium/params.h"
@@ -31,24 +32,42 @@ bool CKey::Check(const unsigned char* vch)
 
 void CKey::MakeNewKey(bool fCompressedIn)
 {
-    // fCompressedIn is ignored for Dilithium
+    // fCompressedIn is ignored for Dilithium. A new key is drawn as a 32-byte
+    // FIPS 204 seed and expanded through the seeded key generation, the same
+    // path a seed imported as a WIF takes, so every key the node makes is
+    // reproducible from its seed.
+    unsigned char seed[SEED_SIZE];
+    do {
+        GetStrongRandBytes(seed, sizeof(seed));
+    } while (!SetSeed(seed)); // retry the vanishingly rare 0xFF-marker public key
+    memory_cleanse(seed, sizeof(seed));
+}
+
+bool CKey::SetSeed(const unsigned char* seed)
+{
     unsigned char pk[CRYPTO_PUBLICKEYBYTES];
     unsigned char sk[CRYPTO_SECRETKEYBYTES];
 
-    do {
-        if (crypto_sign_keypair(pk, sk) != 0) {
-            // This should never happen with a good PRNG
-            throw std::runtime_error("Dilithium key generation failed");
-        }
-    } while (pk[0] == 0xFF); // Ensure public key doesn't start with invalid marker
+    if (crypto_sign_seed_keypair(pk, sk, seed) != 0) {
+        fValid = false;
+        return false;
+    }
+    if (pk[0] == 0xFF) {
+        // The node's invalid-key marker. A fixed seed has no next draw, so the
+        // caller is told; MakeNewKey redraws.
+        memory_cleanse(sk, sizeof(sk));
+        fValid = false;
+        return false;
+    }
 
-    // Store SK + PK in keydata
-    // keydata is resized to 3872 in constructor
+    // Store SK + PK in keydata (resized to 3872 in the constructor).
     memcpy(keydata.data(), sk, CRYPTO_SECRETKEYBYTES);
     memcpy(keydata.data() + CRYPTO_SECRETKEYBYTES, pk, CRYPTO_PUBLICKEYBYTES);
+    memory_cleanse(sk, sizeof(sk));
 
     fValid = true;
     fCompressed = false; // Dilithium keys are not "compressed" in the ECDSA sense
+    return true;
 }
 
 bool CKey::SetPrivKey(const CPrivKey& privkey, bool fCompressedIn)
