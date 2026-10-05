@@ -228,7 +228,7 @@ jobs:
   # ============================================
   build-macos-arm64:
     name: macOS ARM64
-    runs-on: macos-14
+    runs-on: macos-15
     steps:
       - uses: actions/checkout@v5
 
