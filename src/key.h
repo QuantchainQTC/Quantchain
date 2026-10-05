@@ -53,6 +53,9 @@ public:
     //! Size of keydata: the ML-DSA-44 secret key (2560 bytes) followed by its public key (1312 bytes).
     static constexpr unsigned int SIZE = 3872;
 
+    //! Size of the FIPS 204 seed a key is generated from (ML-DSA-44 xi).
+    static constexpr unsigned int SEED_SIZE = 32;
+
     //! Construct an invalid private key.
     CKey() : fValid(false), fCompressed(false)
     {
@@ -103,6 +106,18 @@ public:
 
     //! Generate a new private key using a cryptographic PRNG.
     void MakeNewKey(bool fCompressed);
+
+    //! Set this key from a 32-byte FIPS 204 seed, expanding it to the full
+    //! ML-DSA-44 key pair through the seeded key generation. Returns false if
+    //! the seed expands to a public key the node treats as invalid (first
+    //! byte 0xFF), leaving the key invalid.
+    bool SetSeed(const unsigned char* seed);
+
+    //! Deterministically check that the secret and public halves of keydata
+    //! form a consistent FIPS 204 key pair. Unlike VerifyPubKey, which signs
+    //! and verifies once, this cannot be passed by a damaged t0 or s2. Used to
+    //! validate an untrusted imported expanded key.
+    bool CheckKeyPair() const;
 
     /**
      * Convert the private key to a CPrivKey (serialized OpenSSL private key data).

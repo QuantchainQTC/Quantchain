@@ -153,6 +153,65 @@ int crypto_sign_seed_keypair(uint8_t* pk, uint8_t* sk, const uint8_t* seed)
 }
 
 /*************************************************
+ * Name:        crypto_sign_check_keypair
+ *
+ * Description: Deterministically check that a packed secret key and public key
+ *              form a consistent FIPS 204 key pair. Unlike a sign-and-verify
+ *              trial, which can pass for a damaged t0 or s2, this recomputes the
+ *              public key from the secret key's (rho, s1, s2) exactly as key
+ *              generation does and compares the packed bytes, so tr = H(pk) and
+ *              t0 are checked too. For validating an untrusted imported key.
+ *
+ * Arguments:   - const uint8_t *pk: pointer to bit-packed public key
+ *              - const uint8_t *sk: pointer to bit-packed secret key
+ *
+ * Returns 0 if the pair is consistent, -1 otherwise.
+ **************************************************/
+int crypto_sign_check_keypair(const uint8_t* pk, const uint8_t* sk)
+{
+    uint8_t rho[SEEDBYTES], tr[TRBYTES], key[SEEDBYTES];
+    uint8_t pk_check[CRYPTO_PUBLICKEYBYTES], sk_check[CRYPTO_SECRETKEYBYTES], tr_check[TRBYTES];
+    polyvecl mat[K], s1, s1hat;
+    polyveck s2, t1, t0;
+    int ok = 0;
+
+    unpack_sk(rho, tr, key, &t0, &s1, &s2, sk);
+
+    /* Reject out-of-range secret vectors before trusting the unpacked values. */
+    if (polyvecl_chknorm(&s1, ETA + 1) || polyveck_chknorm(&s2, ETA + 1))
+        goto done;
+
+    /* Recompute t = A*s1 + s2 and split into (t1, t0), as key generation does. */
+    polyvec_matrix_expand(mat, rho);
+    s1hat = s1;
+    polyvecl_ntt(&s1hat);
+    polyvec_matrix_pointwise_montgomery(&t1, mat, &s1hat);
+    polyveck_reduce(&t1);
+    polyveck_invntt_tomont(&t1);
+    polyveck_add(&t1, &t1, &s2);
+    polyveck_caddq(&t1);
+    polyveck_power2round(&t1, &t0, &t1);
+
+    /* The recomputed public and secret keys must equal the ones given, byte for
+       byte: pk covers rho and t1, sk covers t0, and tr = H(pk). */
+    pack_pk(pk_check, rho, &t1);
+    shake256(tr_check, TRBYTES, pk_check, CRYPTO_PUBLICKEYBYTES);
+    pack_sk(sk_check, rho, tr_check, key, &t0, &s1, &s2);
+
+    ok = (memcmp(pk_check, pk, CRYPTO_PUBLICKEYBYTES) == 0) &&
+         (memcmp(sk_check, sk, CRYPTO_SECRETKEYBYTES) == 0);
+
+done:
+    soqucoin_memcleanse(&s1, sizeof(s1));
+    soqucoin_memcleanse(&s1hat, sizeof(s1hat));
+    soqucoin_memcleanse(&s2, sizeof(s2));
+    soqucoin_memcleanse(&t0, sizeof(t0));
+    soqucoin_memcleanse(key, sizeof(key));
+    soqucoin_memcleanse(sk_check, sizeof(sk_check));
+    return ok ? 0 : -1;
+}
+
+/*************************************************
  * Name:        crypto_sign_signature_internal
  *
  * Description: Computes signature. Internal API.

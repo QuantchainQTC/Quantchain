@@ -5,6 +5,7 @@
 
 #include "base58.h"
 #include "chain.h"
+#include "crypto/sha256.h"
 #include "fs.h"
 #include "rpc/server.h"
 #include "init.h"
@@ -13,6 +14,7 @@
 #include "script/standard.h"
 #include "sync.h"
 #include "util.h"
+#include "utiladdress.h"
 #include "utiltime.h"
 #include "wallet.h"
 #include "wallet/rpcutil.h"
@@ -137,7 +139,8 @@ UniValue importprivkey(const JSONRPCRequest& request)
     if (!key.IsValid()) throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Private key outside allowed range");
 
     CPubKey pubkey = key.GetPubKey();
-    assert(key.VerifyPubKey(pubkey));
+    if (!key.VerifyPubKey(pubkey))
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Private key inconsistent with its public key");
     CKeyID vchAddress = pubkey.GetID();
     {
         pwalletMain->MarkDirty();
@@ -500,8 +503,15 @@ UniValue importwallet(const JSONRPCRequest& request)
         if (!vchSecret.SetString(vstr[0]))
             continue;
         CKey key = vchSecret.GetKey();
+        if (!key.IsValid()) {
+            LogPrintf("Skipping import of an invalid key in the dump\n");
+            continue;
+        }
         CPubKey pubkey = key.GetPubKey();
-        assert(key.VerifyPubKey(pubkey));
+        if (!key.VerifyPubKey(pubkey)) {
+            LogPrintf("Skipping import of %s (key inconsistent with its public key)\n", CBitcoinAddress(pubkey.GetID()).ToString());
+            continue;
+        }
         CKeyID keyid = pubkey.GetID();
         if (pwalletMain->HaveKey(keyid)) {
             LogPrintf("Skipping import of %s (key already present)\n", CBitcoinAddress(keyid).ToString());
@@ -573,14 +583,43 @@ UniValue dumpprivkey(const JSONRPCRequest& request)
     EnsureWalletIsUnlocked();
 
     string strAddress = request.params[0].get_str();
-    CBitcoinAddress address;
-    if (!address.SetString(strAddress))
-        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid Soqucoin address");
-    CKeyID keyID;
-    if (!address.GetKeyID(keyID))
-        throw JSONRPCError(RPC_TYPE_ERROR, "Address does not refer to a key");
+
     CKey vchSecret;
-    if (!pwalletMain->GetKey(keyID, vchSecret))
+    bool found = false;
+
+    // Dilithium addresses are bech32m witness v1, whose program is SHA256 of
+    // the public key; CBitcoinAddress (base58) cannot read them. Find the key
+    // whose public key hashes to the program, the match IsMine makes.
+    CTxDestination dest = DecodeDestination(strAddress, Params().Bech32HRP());
+    if (const WitnessV1ScriptHash* wv1 = boost::get<WitnessV1ScriptHash>(&dest)) {
+        std::set<CKeyID> setKeyIDs;
+        pwalletMain->GetKeys(setKeyIDs);
+        for (const CKeyID& id : setKeyIDs) {
+            CPubKey pubkey;
+            if (!pwalletMain->GetPubKey(id, pubkey))
+                continue;
+            uint256 hash;
+            CSHA256().Write(pubkey.begin(), pubkey.size()).Finalize(hash.begin());
+            if (memcmp(hash.begin(), wv1->begin(), 32) == 0) {
+                if (!pwalletMain->GetKey(id, vchSecret))
+                    throw JSONRPCError(RPC_WALLET_ERROR, "Private key for address " + strAddress + " is not known");
+                found = true;
+                break;
+            }
+        }
+    } else {
+        // A base58 key-hash address (Hash160 of the Dilithium public key), the
+        // form dumpwallet writes in its addr= field.
+        CBitcoinAddress address;
+        CKeyID keyID;
+        if (!address.SetString(strAddress) || !address.GetKeyID(keyID))
+            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid Soqucoin address");
+        if (!pwalletMain->GetKey(keyID, vchSecret))
+            throw JSONRPCError(RPC_WALLET_ERROR, "Private key for address " + strAddress + " is not known");
+        found = true;
+    }
+
+    if (!found)
         throw JSONRPCError(RPC_WALLET_ERROR, "Private key for address " + strAddress + " is not known");
     return CBitcoinSecret(vchSecret).ToString();
 }
@@ -815,7 +854,8 @@ UniValue ProcessImport(const UniValue& data, const int64_t timestamp)
                     }
 
                     CPubKey pubkey = key.GetPubKey();
-                    assert(key.VerifyPubKey(pubkey));
+                    if (!key.VerifyPubKey(pubkey))
+                        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Private key inconsistent with its public key");
 
                     CKeyID vchAddress = pubkey.GetID();
                     pwalletMain->MarkDirty();
@@ -923,7 +963,8 @@ UniValue ProcessImport(const UniValue& data, const int64_t timestamp)
                 }
 
                 CPubKey pubKey = key.GetPubKey();
-                assert(key.VerifyPubKey(pubKey));
+                if (!key.VerifyPubKey(pubKey))
+                    throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Private key inconsistent with its public key");
 
                 CBitcoinAddress pubKeyAddress = CBitcoinAddress(pubKey.GetID());
 

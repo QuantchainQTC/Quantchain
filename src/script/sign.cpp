@@ -374,6 +374,13 @@ static Stacks CombineSignatures(const CScript& scriptPubKey, const BaseSignature
         if (sigs1.witness.empty() || sigs1.witness[0].empty())
             return sigs2;
         return sigs1;
+    case TX_WITNESS_V1_SCRIPTHASH:
+        // Dilithium witness v1 carries <signature> <public key>. Keep the
+        // non-empty witness, exactly as the v0 key-hash case does; the empty
+        // default case would discard the witness ProduceSignature built.
+        if (sigs1.witness.empty() || sigs1.witness[0].empty())
+            return sigs2;
+        return sigs1;
     case TX_SCRIPTHASH:
         if (sigs1.script.empty() || sigs1.script.back().empty())
             return sigs2;

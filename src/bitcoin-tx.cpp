@@ -550,6 +550,8 @@ static void MutateTxSign(CMutableTransaction& tx, const std::string& flagStr)
             throw std::runtime_error("privatekey not valid");
 
         CKey key = vchSecret.GetKey();
+        if (!key.IsValid())
+            throw std::runtime_error("privatekey not valid");
         tempKeystore.AddKey(key);
     }
 
