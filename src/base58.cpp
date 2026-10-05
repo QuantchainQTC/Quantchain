@@ -303,7 +303,17 @@ CKey CBitcoinSecret::GetKey()
         ret.SetSeed(vchData.data());
     } else if (vchData.size() == CKey::SIZE) {
         // Expanded form: the full ML-DSA-44 key pair (secret key || public key).
+        // The bytes are untrusted and CKey::Set accepts any payload, so verify the
+        // stored public half is a real public key and matches the secret key.
+        // Otherwise GetPubKey (on a 0xFF marker) or VerifyPubKey (on a mismatch)
+        // asserts in a caller; mirror the check DecryptKey makes.
         ret.Set(vchData.begin(), vchData.begin() + CKey::SIZE, false);
+        if (ret.IsValid()) {
+            const unsigned char* pub = vchData.data() + (CKey::SIZE - CPubKey::SIZE);
+            CPubKey vchPubKey(pub, pub + CPubKey::SIZE);
+            if (!vchPubKey.IsValid() || !ret.VerifyPubKey(vchPubKey))
+                ret = CKey();
+        }
     }
     // Any other length, including a classical 32-byte or 33-byte 0x01 WIF,
     // leaves ret invalid.

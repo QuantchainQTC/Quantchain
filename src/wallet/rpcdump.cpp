@@ -602,7 +602,8 @@ UniValue dumpprivkey(const JSONRPCRequest& request)
             }
         }
     } else {
-        // A legacy base58 address (a key hash), kept for any non-Dilithium key.
+        // A base58 key-hash address (Hash160 of the Dilithium public key), the
+        // form dumpwallet writes in its addr= field.
         CBitcoinAddress address;
         CKeyID keyID;
         if (!address.SetString(strAddress) || !address.GetKeyID(keyID))

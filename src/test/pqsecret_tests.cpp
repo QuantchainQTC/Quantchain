@@ -208,4 +208,101 @@ BOOST_AUTO_TEST_CASE(seed_expanding_to_the_marker_is_refused)
     BOOST_CHECK(!secret.GetKey().IsValid());
 }
 
+// The expanded form is untrusted on import. A crafted 3,872-byte payload is
+// format-valid, but GetKey must return an invalid key unless the public half is
+// a real public key and matches the secret key, or GetPubKey (0xFF marker) or
+// VerifyPubKey (mismatch) asserts in a caller that only checked IsValid.
+BOOST_AUTO_TEST_CASE(crafted_expanded_key_is_refused)
+{
+    CKey good;
+    good.MakeNewKey(true);
+    std::vector<unsigned char> expanded(good.begin(), good.end());
+    BOOST_REQUIRE_EQUAL(expanded.size(), (size_t)CKey::SIZE);
+    const size_t pub = CKey::SIZE - CPubKey::SIZE; // first byte of the public half
+
+    // A sound expanded key round-trips.
+    {
+        CBitcoinSecret secret;
+        BOOST_REQUIRE(secret.SetString(SecretString(expanded)));
+        BOOST_CHECK(secret.GetKey().IsValid());
+    }
+    // Public half begins 0xFF (the invalid marker): format-valid, key refused.
+    {
+        std::vector<unsigned char> bad = expanded;
+        bad[pub] = 0xFF;
+        CBitcoinSecret secret;
+        BOOST_REQUIRE(secret.SetString(SecretString(bad)));
+        BOOST_CHECK(secret.IsValid());
+        BOOST_CHECK(!secret.GetKey().IsValid());
+    }
+    // Public half does not match the secret key: format-valid, key refused.
+    {
+        std::vector<unsigned char> bad = expanded;
+        bad[pub + 1] ^= 0x01;
+        CBitcoinSecret secret;
+        BOOST_REQUIRE(secret.SetString(SecretString(bad)));
+        BOOST_CHECK(secret.IsValid());
+        BOOST_CHECK(!secret.GetKey().IsValid());
+    }
+}
+
+// The wrong network's prefix and every wrong length are refused, and GetKey
+// never asserts on a short payload.
+BOOST_AUTO_TEST_CASE(wrong_prefix_and_lengths_refused)
+{
+    CKey key;
+    key.MakeNewKey(true);
+    const std::vector<unsigned char> expanded(key.begin(), key.end());
+
+    // Mainnet's SECRET_KEY prefix (158) on the regtest chain (239).
+    std::vector<unsigned char> mainnet{158};
+    mainnet.insert(mainnet.end(), expanded.begin(), expanded.end());
+    CBitcoinSecret wrong_net;
+    BOOST_CHECK(!wrong_net.SetString(EncodeBase58Check(mainnet)));
+    BOOST_CHECK(!wrong_net.IsValid());
+
+    for (size_t n : {size_t(0), size_t(1), size_t(31), size_t(34), size_t(3871), size_t(3873), size_t(3905)}) {
+        CBitcoinSecret secret;
+        BOOST_CHECK(!secret.SetString(SecretString(std::vector<unsigned char>(n, 0x22))));
+        BOOST_CHECK(!secret.GetKey().IsValid());
+    }
+}
+
+// CombineSignatures keeps a witness v1 signature in every ordering, as the v0
+// key-hash case does: the signed stack wins over an empty one from either side,
+// two empties stay empty. An implementation that always returned the first
+// argument would fail the (empty, signed) ordering.
+BOOST_AUTO_TEST_CASE(combine_signatures_v1_orderings)
+{
+    CKey key;
+    key.MakeNewKey(true);
+    const CPubKey pubkey = key.GetPubKey();
+    const CScript scriptPubKey = CScript() << OP_1 << ToByteVector(WitnessProgram(pubkey));
+
+    CBasicKeyStore keystore;
+    BOOST_REQUIRE(keystore.AddKey(key));
+
+    CMutableTransaction tx;
+    tx.nVersion = 2;
+    CTxIn in;
+    in.prevout = COutPoint(GetRandHash(), 0);
+    in.nSequence = 0xffffffff;
+    tx.vin.push_back(in);
+    tx.vout.push_back(CTxOut(900000000LL, CScript() << OP_1 << std::vector<unsigned char>(32, 0x33)));
+    const CAmount amount = 1000000000LL;
+
+    SignatureData signed_data;
+    BOOST_REQUIRE(ProduceSignature(MutableTransactionSignatureCreator(&keystore, &tx, 0, amount, SIGHASH_ALL),
+                                   scriptPubKey, signed_data));
+    BOOST_REQUIRE_EQUAL(signed_data.scriptWitness.stack.size(), 2u);
+    const SignatureData empty;
+
+    const CTransaction txConst(tx);
+    const TransactionSignatureChecker checker(&txConst, 0, amount);
+    BOOST_CHECK_EQUAL(CombineSignatures(scriptPubKey, checker, signed_data, empty).scriptWitness.stack.size(), 2u);
+    BOOST_CHECK_EQUAL(CombineSignatures(scriptPubKey, checker, empty, signed_data).scriptWitness.stack.size(), 2u);
+    BOOST_CHECK_EQUAL(CombineSignatures(scriptPubKey, checker, signed_data, signed_data).scriptWitness.stack.size(), 2u);
+    BOOST_CHECK_EQUAL(CombineSignatures(scriptPubKey, checker, empty, empty).scriptWitness.stack.size(), 0u);
+}
+
 BOOST_AUTO_TEST_SUITE_END()
