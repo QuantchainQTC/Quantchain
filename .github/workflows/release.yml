@@ -143,76 +143,85 @@ jobs:
           path: soqucoin-*-linux-arm64.tar.gz
 
   # ============================================
-  # macOS Intel Build
+  # macOS Builds (Apple Silicon and Intel)
+  # Each architecture builds on a runner of that architecture. The binaries
+  # link Homebrew's static archives and load only system libraries, so they
+  # run on a Mac without Homebrew from macOS version macos_min.
   # ============================================
-  build-macos-x64:
-    runs-on: macos-15
+  build-macos:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: arm64
+            runner: macos-15
+            macos_min: '15.0'
+            asset: macos-arm64
+          - arch: x86_64
+            runner: macos-15-intel
+            macos_min: '15.0'
+            asset: macos-x64
+    runs-on: ${{ matrix.runner }}
     steps:
       - name: Checkout
         uses: actions/checkout@v5
-      
-      - name: Install dependencies
-        run: |
-          brew install automake libtool boost miniupnpc openssl@3 pkg-config libevent zeromq
-      
-      - name: Build
-        env:
-          BOOST_ROOT: /opt/homebrew
-        run: |
-          ./autogen.sh
-          ./configure --without-gui --disable-tests --disable-bench --disable-wallet \
-            --with-boost=/opt/homebrew \
-            LDFLAGS="-L/opt/homebrew/lib -L$(brew --prefix openssl@3)/lib -L$(brew --prefix libevent)/lib" \
-            CPPFLAGS="-I/opt/homebrew/include -I$(brew --prefix openssl@3)/include -I$(brew --prefix libevent)/include"
-          make $MAKEFLAGS
-      
-      - name: Package
-        run: |
-          mkdir -p dist
-          cp src/.libs/soqucoind src/.libs/soqucoin-cli dist/ 2>/dev/null || cp src/soqucoind src/soqucoin-cli dist/
-          tar -czvf soqucoin-${{ github.ref_name }}-macos-x64.tar.gz -C dist .
-      
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: soqucoin-macos-x64
-          path: soqucoin-*-macos-x64.tar.gz
 
-  # ============================================
-  # macOS ARM64 (Apple Silicon) Build
-  # ============================================
-  build-macos-arm64:
-    runs-on: macos-14
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v5
-      
       - name: Install dependencies
         run: |
-          brew install automake libtool boost miniupnpc openssl@3 pkg-config libevent zeromq
-      
+          brew install automake libtool boost miniupnpc openssl@3 pkg-config libevent zeromq libsodium
+
       - name: Build
         env:
-          BOOST_ROOT: /opt/homebrew
+          MACOSX_DEPLOYMENT_TARGET: ${{ matrix.macos_min }}
         run: |
+          set -o pipefail
+          # Each Homebrew lib directory holds a .dylib beside the .a and the
+          # linker takes the .dylib, so link from a directory of archives only.
+          static_libs="$RUNNER_TEMP/static-libs"
+          mkdir -p "$static_libs"
+          for formula in boost openssl@3 libevent zeromq miniupnpc libsodium; do
+            ln -s "$(brew --prefix "$formula")"/lib/*.a "$static_libs"/
+          done
           ./autogen.sh
-          ./configure --without-gui --disable-tests --disable-bench --disable-wallet \
-            --with-boost=/opt/homebrew \
-            LDFLAGS="-L/opt/homebrew/lib -L/opt/homebrew/opt/openssl@3/lib -L/opt/homebrew/opt/libevent/lib" \
-            CPPFLAGS="-I/opt/homebrew/include -I/opt/homebrew/opt/openssl@3/include -I/opt/homebrew/opt/libevent/include"
-          make $MAKEFLAGS
-      
+          # --disable-shared links the in-tree univalue into the binaries.
+          # libzmq.a calls libsodium, which nothing else names.
+          ./configure --without-gui --disable-tests --disable-bench --disable-wallet --disable-shared \
+            --with-boost="$(brew --prefix)" --with-boost-libdir="$static_libs" \
+            LDFLAGS="-L$static_libs" \
+            CPPFLAGS="-I$(brew --prefix)/include -I$(brew --prefix openssl@3)/include" \
+            LIBS="-lsodium"
+          make $MAKEFLAGS 2>&1 | tee build.log
+          # The linker only warns when an archive needs a newer macOS than
+          # the deployment target.
+          if grep -m 5 'built for newer' build.log; then
+            echo "an archive needs a newer macOS than $MACOSX_DEPLOYMENT_TARGET" >&2
+            exit 1
+          fi
+
+      - name: Verify binaries
+        run: |
+          .github/scripts/check-macos-release.sh ${{ matrix.arch }} ${{ matrix.macos_min }} \
+            src/soqucoind src/soqucoin-cli
+          # configure leaves out UPnP or ZMQ with only a warning when it
+          # cannot find the library.
+          for opt in -upnp -zmqpubhashblock; do
+            if ! src/soqucoind -help | grep -q -- "$opt"; then
+              echo "soqucoind -help does not list $opt" >&2
+              exit 1
+            fi
+          done
+
       - name: Package
         run: |
           mkdir -p dist
-          cp src/.libs/soqucoind src/.libs/soqucoin-cli dist/ 2>/dev/null || cp src/soqucoind src/soqucoin-cli dist/
-          tar -czvf soqucoin-${{ github.ref_name }}-macos-arm64.tar.gz -C dist .
-      
+          cp src/soqucoind src/soqucoin-cli dist/
+          tar -czvf soqucoin-${{ github.ref_name }}-${{ matrix.asset }}.tar.gz -C dist .
+
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: soqucoin-macos-arm64
-          path: soqucoin-*-macos-arm64.tar.gz
+          name: soqucoin-${{ matrix.asset }}
+          path: soqucoin-*-${{ matrix.asset }}.tar.gz
 
   # ============================================
   # Windows x64 Cross-Compile Build
@@ -326,11 +335,13 @@ jobs:
   # Create Release with All Artifacts
   # ============================================
   create-release:
+    # A workflow_dispatch run from a branch builds and uploads the artifacts
+    # and publishes nothing.
+    if: startsWith(github.ref, 'refs/tags/')
     needs:
       - build-linux-x64
       - build-linux-arm64
-      - build-macos-x64
-      - build-macos-arm64
+      - build-macos
       - build-windows-x64
       - build-solo-miner
     runs-on: ubuntu-latest
