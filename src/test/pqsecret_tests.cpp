@@ -181,4 +181,31 @@ BOOST_AUTO_TEST_CASE(combine_signatures_keeps_witness_v1)
                         ScriptErrorString(serror));
 }
 
+// About one seed in 256 expands to a public key beginning 0xFF, the node's
+// invalid-key marker. Such a seed's WIF is format-valid, so IsValid accepts it,
+// but SetSeed refuses it and GetKey returns an invalid key. Every caller that
+// loads a key must check IsValid before using it (signrawtransaction, soqucoin-tx
+// MutateTxSign, importwallet, importprivkey all do), or GetPubKey asserts.
+BOOST_AUTO_TEST_CASE(seed_expanding_to_the_marker_is_refused)
+{
+    std::vector<unsigned char> seed(CKey::SEED_SIZE, 0);
+    CKey key;
+    int tries = 0;
+    for (; tries < 20000; ++tries) {
+        uint256 h;
+        CSHA256().Write((const unsigned char*)&tries, sizeof(tries)).Finalize(h.begin());
+        std::copy(h.begin(), h.end(), seed.begin());
+        if (!key.SetSeed(seed.data())) break; // a seed whose public key begins 0xFF
+    }
+    BOOST_REQUIRE_MESSAGE(tries < 20000, "no 0xFF-marker seed found in 20000 tries");
+    BOOST_CHECK(!key.IsValid());
+
+    // The WIF is format-valid, so a caller that does not re-check IsValid after
+    // GetKey would use an invalid key.
+    CBitcoinSecret secret;
+    BOOST_REQUIRE(secret.SetString(SeedWIF(seed)));
+    BOOST_CHECK(secret.IsValid());
+    BOOST_CHECK(!secret.GetKey().IsValid());
+}
+
 BOOST_AUTO_TEST_SUITE_END()

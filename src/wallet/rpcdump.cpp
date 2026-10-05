@@ -502,6 +502,8 @@ UniValue importwallet(const JSONRPCRequest& request)
         if (!vchSecret.SetString(vstr[0]))
             continue;
         CKey key = vchSecret.GetKey();
+        if (!key.IsValid())
+            continue;
         CPubKey pubkey = key.GetPubKey();
         assert(key.VerifyPubKey(pubkey));
         CKeyID keyid = pubkey.GetID();
