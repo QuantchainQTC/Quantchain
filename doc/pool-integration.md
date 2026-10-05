@@ -110,10 +110,12 @@ zmqpubrawtx=tcp://127.0.0.1:28332
 | Stagenet | Bech32m (witness v1) | `ssq1p` | `ssq1pxyz...` |
 | Testnet / Regtest | Bech32m (witness v1) | `sq1p` | shares the mainnet HRP; select the network by RPC port, not by address prefix |
 
-**Important**: Legacy Base58 addresses (`S...`, `3...`) cannot be paid. They stand for
-pay-to-pubkey-hash and pay-to-script-hash outputs, which the script layer cannot spend and the
-node does not relay. `validateaddress` still reports a Base58 address as valid, so accept a miner
-address only when `validateaddress` returns `isdilithium` true (witness version 1).
+**Important**: Do not pay Legacy Base58 addresses. They stand for pay-to-pubkey-hash and
+pay-to-script-hash outputs, which the script layer cannot spend. Mainnet and stagenet nodes refuse
+to relay a payment to one; testnet and regtest nodes accept non-standard transactions by default
+(`-acceptnonstdtxn`), so there such a payment can still confirm as an output nobody can spend.
+`validateaddress` reports a Base58 address as valid, so accept a miner address only when
+`validateaddress` returns `isdilithium` true (witness version 1).
 
 ---
 
