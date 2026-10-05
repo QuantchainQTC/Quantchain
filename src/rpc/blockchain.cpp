@@ -1687,7 +1687,6 @@ static UniValue getblockstats(const JSONRPCRequest& request)
     std::vector<std::pair<CAmount, int64_t> > feerate_array;
     std::vector<int64_t> txsize_array;
 
-    bool witnessEnabled = IsWitnessEnabled(pindex, Params().GetConsensus(pindex->nHeight));
     txnouttype whichType;
 
     for (size_t i = 0; i < block.vtx.size(); ++i) {
@@ -1708,7 +1707,7 @@ static UniValue getblockstats(const JSONRPCRequest& request)
                         continue;
                     }
 
-                    if (::IsStandard(out.scriptPubKey, whichType, witnessEnabled)) {
+                    if (::IsStandard(out.scriptPubKey, whichType)) {
                         if (whichType == TX_NULL_DATA) {
                             continue;
                         }

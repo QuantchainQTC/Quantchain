@@ -78,7 +78,6 @@ bool fTxIndex = false;
 bool fHavePruned = false;
 bool fPruneMode = false;
 bool fWitnessPrune = false;
-bool fIsBareMultisigStd = DEFAULT_PERMIT_BAREMULTISIG;
 bool fRequireStandard = true;
 bool fCheckBlockIndex = false;
 bool fCheckpointsEnabled = DEFAULT_CHECKPOINTS_ENABLED;
@@ -728,7 +727,8 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
         auto bip9Active = [&](Consensus::DeploymentPos pos) {
             return VersionBitsState(chainActive.Tip(), cons, pos, versionbitscache) == THRESHOLD_ACTIVE;
         };
-        // v0/v1 are the always-standard base forms and are handled by Solver.
+        // v1 is the always-standard base form; v0 is never standard, because the
+        // script layer cannot spend it as Solver names it (IsStandard, bead trp6).
         // v2 (PAT) is deliberately absent and must stay absent: it is
         // permanently unfundable at consensus (ConnectBlock's v2 creation rule),
         // because PAT's attestation is a coinbase commitment rather than an
@@ -755,7 +755,7 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
 
     // Rather not work on nonstandard transactions (unless -testnet/-regtest)
     std::string reason;
-    if (fRequireStandard && !IsStandardTx(tx, reason, witnessEnabled, activeWitnessVersions))
+    if (fRequireStandard && !IsStandardTx(tx, reason, activeWitnessVersions))
         return state.DoS(0, false, REJECT_NONSTANDARD, reason);
 
     // Only accept nLockTime-using transactions that can be mined in the next

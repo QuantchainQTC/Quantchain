@@ -95,7 +95,7 @@ jobs:
       - name: Run functional tests (Soqucoin-specific)
         run: |
           python3 qa/pull-tester/rpc-tests.py \
-            auxpow.py latticefold_basic.py pat_basic.py \
+            auxpow.py latticefold_basic.py pat_basic.py unspendable-outputs.py \
             witness-prune-serving.py witness-prune-ibd.py \
             wallet-encryption.py pq-address-rpcs.py
 

@@ -362,14 +362,14 @@ BOOST_AUTO_TEST_CASE(v10_output_is_never_relay_standard)
     for (int v = 2; v <= 9; ++v) everyAllocated |= WitnessVersionBit(v);
 
     txnouttype whichType = TX_NONSTANDARD;
-    BOOST_CHECK_MESSAGE(!::IsStandard(Spk(OP_10), whichType, true, everyAllocated),
+    BOOST_CHECK_MESSAGE(!::IsStandard(Spk(OP_10), whichType, everyAllocated),
         "a v10 output must be non-standard even when v2-v9 are all active — v10 has "
         "no deployment, so it is anyone-can-spend at the script layer");
     // Two independent reasons hold it shut, and the test asserts both survive:
     // the activeWitnessVersions gate in policy.cpp, and Solver having no
     // classification for OP_10 <32> at all (TX_NONSTANDARD). Forcing the mask bit
     // on isolates the second one.
-    BOOST_CHECK_MESSAGE(!::IsStandard(Spk(OP_10), whichType, true, everyAllocated | WitnessVersionBit(10)),
+    BOOST_CHECK_MESSAGE(!::IsStandard(Spk(OP_10), whichType, everyAllocated | WitnessVersionBit(10)),
         "v10 must still be non-standard with its mask bit forced on: Solver has no "
         "TX_WITNESS_V10 form, so granting a deployment alone would NOT make it "
         "relayable — the allocation has to be completed in Solver too");

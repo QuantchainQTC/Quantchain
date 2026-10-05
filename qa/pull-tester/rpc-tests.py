@@ -144,6 +144,7 @@ testScripts = [
     'pq-address-rpcs.py',
     'walletnotify.py',
     'p2p_invalid_locator.py',
+    'unspendable-outputs.py',
     'mempool_resurrect_test.py',
     'txn_doublespend.py --mineblock',
     'txn_clone.py',
