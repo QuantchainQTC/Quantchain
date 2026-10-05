@@ -503,11 +503,15 @@ UniValue importwallet(const JSONRPCRequest& request)
         if (!vchSecret.SetString(vstr[0]))
             continue;
         CKey key = vchSecret.GetKey();
-        if (!key.IsValid())
+        if (!key.IsValid()) {
+            LogPrintf("Skipping import of an invalid key in the dump\n");
             continue;
+        }
         CPubKey pubkey = key.GetPubKey();
-        if (!key.VerifyPubKey(pubkey))
+        if (!key.VerifyPubKey(pubkey)) {
+            LogPrintf("Skipping import of %s (key inconsistent with its public key)\n", CBitcoinAddress(pubkey.GetID()).ToString());
             continue;
+        }
         CKeyID keyid = pubkey.GetID();
         if (pwalletMain->HaveKey(keyid)) {
             LogPrintf("Skipping import of %s (key already present)\n", CBitcoinAddress(keyid).ToString());

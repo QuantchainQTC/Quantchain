@@ -305,14 +305,14 @@ CKey CBitcoinSecret::GetKey()
         // Expanded form: the full ML-DSA-44 key pair (secret key || public key).
         // The bytes are untrusted and CKey::Set accepts any payload, so verify the
         // stored public half is a real public key and matches the secret key.
-        // Otherwise GetPubKey (on a 0xFF marker) or VerifyPubKey (on a mismatch)
-        // asserts in a caller; mirror the check DecryptKey makes.
+        // Otherwise a 0xFF public half fails GetPubKey, and a mismatched one fails
+        // VerifyPubKey, at any caller that uses the key.
         ret.Set(vchData.begin(), vchData.begin() + CKey::SIZE, false);
         if (ret.IsValid()) {
-            // The public half must not be the invalid marker (or GetPubKey
-            // asserts), and the secret and public halves must be a consistent
-            // key pair (or VerifyPubKey asserts at an import site). CheckKeyPair
-            // is deterministic, so a damaged t0 or s2 cannot slip through.
+            // The public half must not be the invalid marker (GetPubKey rejects
+            // it), and the secret and public halves must be a consistent key
+            // pair, so no caller is handed a key it cannot use. CheckKeyPair is
+            // deterministic, so a damaged t0 or s2 cannot slip through.
             const unsigned char* pub = vchData.data() + (CKey::SIZE - CPubKey::SIZE);
             CPubKey vchPubKey(pub, pub + CPubKey::SIZE);
             if (!vchPubKey.IsValid() || !ret.CheckKeyPair())

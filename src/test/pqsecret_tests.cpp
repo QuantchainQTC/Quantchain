@@ -184,8 +184,9 @@ BOOST_AUTO_TEST_CASE(combine_signatures_keeps_witness_v1)
 // About one seed in 256 expands to a public key beginning 0xFF, the node's
 // invalid-key marker. Such a seed's WIF is format-valid, so IsValid accepts it,
 // but SetSeed refuses it and GetKey returns an invalid key. Every caller that
-// loads a key must check IsValid before using it (signrawtransaction, soqucoin-tx
-// MutateTxSign, importwallet, importprivkey all do), or GetPubKey asserts.
+// loads a key checks IsValid before using it (signrawtransaction, soqucoin-tx
+// MutateTxSign, importwallet, importprivkey all do), so an invalid key is
+// refused rather than used.
 BOOST_AUTO_TEST_CASE(seed_expanding_to_the_marker_is_refused)
 {
     std::vector<unsigned char> seed(CKey::SEED_SIZE, 0);
@@ -210,8 +211,8 @@ BOOST_AUTO_TEST_CASE(seed_expanding_to_the_marker_is_refused)
 
 // The expanded form is untrusted on import. A crafted 3,872-byte payload is
 // format-valid, but GetKey must return an invalid key unless the public half is
-// a real public key and matches the secret key, or GetPubKey (0xFF marker) or
-// VerifyPubKey (mismatch) asserts in a caller that only checked IsValid.
+// a real public key and matches the secret key; otherwise a caller is handed a
+// key that GetPubKey (0xFF marker) or VerifyPubKey (mismatch) refuses.
 BOOST_AUTO_TEST_CASE(crafted_expanded_key_is_refused)
 {
     CKey good;
@@ -247,21 +248,32 @@ BOOST_AUTO_TEST_CASE(crafted_expanded_key_is_refused)
     // The secret key's t0 is damaged while the public half is untouched. A
     // sign-and-verify trial passes for this part of the time (bead girx), so it
     // is the case a probabilistic check misses; the deterministic key-pair check
-    // refuses it every time. Secret-key layout: rho 32, key 32, tr 64, then t0,
-    // so byte 897 is a t0 coefficient.
-    {
+    // refuses it every time. Secret-key layout: rho 32, key 32, tr 64, s1 384,
+    // s2 384, t0 1664; t0 runs from byte 896, so bytes 897 and 2200 are both t0.
+    for (size_t t0_byte : {size_t(897), size_t(2200)}) {
         std::vector<unsigned char> bad = expanded;
-        bad[897] ^= 0x08;
+        bad[t0_byte] ^= 0x08;
         CBitcoinSecret secret;
         BOOST_REQUIRE(secret.SetString(SecretString(bad)));
         BOOST_CHECK(secret.IsValid());
         BOOST_CHECK(!secret.GetKey().IsValid());
     }
-    // The secret vector s2 is damaged (byte 2200): the recomputed public key no
-    // longer matches, so the key is refused.
+    // The secret vector s2 (bytes 512 to 895) is damaged: the recomputed public
+    // key no longer matches. This is the damage a sign-and-verify trial missed
+    // most (it passed every time), so the deterministic check matters most here.
     {
         std::vector<unsigned char> bad = expanded;
-        bad[2200] ^= 0x01;
+        bad[600] ^= 0x01;
+        CBitcoinSecret secret;
+        BOOST_REQUIRE(secret.SetString(SecretString(bad)));
+        BOOST_CHECK(secret.IsValid());
+        BOOST_CHECK(!secret.GetKey().IsValid());
+    }
+    // An s2 byte set to 0xFF forces coefficients outside the [-eta, eta] range,
+    // which the key-pair check's norm test refuses.
+    {
+        std::vector<unsigned char> bad = expanded;
+        bad[520] = 0xFF;
         CBitcoinSecret secret;
         BOOST_REQUIRE(secret.SetString(SecretString(bad)));
         BOOST_CHECK(secret.IsValid());
