@@ -244,6 +244,29 @@ BOOST_AUTO_TEST_CASE(crafted_expanded_key_is_refused)
         BOOST_CHECK(secret.IsValid());
         BOOST_CHECK(!secret.GetKey().IsValid());
     }
+    // The secret key's t0 is damaged while the public half is untouched. A
+    // sign-and-verify trial passes for this part of the time (bead girx), so it
+    // is the case a probabilistic check misses; the deterministic key-pair check
+    // refuses it every time. Secret-key layout: rho 32, key 32, tr 64, then t0,
+    // so byte 897 is a t0 coefficient.
+    {
+        std::vector<unsigned char> bad = expanded;
+        bad[897] ^= 0x08;
+        CBitcoinSecret secret;
+        BOOST_REQUIRE(secret.SetString(SecretString(bad)));
+        BOOST_CHECK(secret.IsValid());
+        BOOST_CHECK(!secret.GetKey().IsValid());
+    }
+    // The secret vector s2 is damaged (byte 2200): the recomputed public key no
+    // longer matches, so the key is refused.
+    {
+        std::vector<unsigned char> bad = expanded;
+        bad[2200] ^= 0x01;
+        CBitcoinSecret secret;
+        BOOST_REQUIRE(secret.SetString(SecretString(bad)));
+        BOOST_CHECK(secret.IsValid());
+        BOOST_CHECK(!secret.GetKey().IsValid());
+    }
 }
 
 // The wrong network's prefix and every wrong length are refused, and GetKey

@@ -113,6 +113,12 @@ public:
     //! byte 0xFF), leaving the key invalid.
     bool SetSeed(const unsigned char* seed);
 
+    //! Deterministically check that the secret and public halves of keydata
+    //! form a consistent FIPS 204 key pair. Unlike VerifyPubKey, which signs
+    //! and verifies once, this cannot be passed by a damaged t0 or s2. Used to
+    //! validate an untrusted imported expanded key.
+    bool CheckKeyPair() const;
+
     /**
      * Convert the private key to a CPrivKey (serialized OpenSSL private key data).
      * This is expensive.

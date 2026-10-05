@@ -309,9 +309,13 @@ CKey CBitcoinSecret::GetKey()
         // asserts in a caller; mirror the check DecryptKey makes.
         ret.Set(vchData.begin(), vchData.begin() + CKey::SIZE, false);
         if (ret.IsValid()) {
+            // The public half must not be the invalid marker (or GetPubKey
+            // asserts), and the secret and public halves must be a consistent
+            // key pair (or VerifyPubKey asserts at an import site). CheckKeyPair
+            // is deterministic, so a damaged t0 or s2 cannot slip through.
             const unsigned char* pub = vchData.data() + (CKey::SIZE - CPubKey::SIZE);
             CPubKey vchPubKey(pub, pub + CPubKey::SIZE);
-            if (!vchPubKey.IsValid() || !ret.VerifyPubKey(vchPubKey))
+            if (!vchPubKey.IsValid() || !ret.CheckKeyPair())
                 ret = CKey();
         }
     }

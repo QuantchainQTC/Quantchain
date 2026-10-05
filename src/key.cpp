@@ -126,6 +126,14 @@ bool CKey::Sign(const uint256& hash, std::vector<unsigned char>& vchSig, uint32_
     return true;
 }
 
+bool CKey::CheckKeyPair() const
+{
+    if (!fValid)
+        return false;
+    // keydata holds the secret key followed by the public key.
+    return crypto_sign_check_keypair(keydata.data() + CRYPTO_SECRETKEYBYTES, keydata.data()) == 0;
+}
+
 bool CKey::VerifyPubKey(const CPubKey& pubkey) const
 {
     // Verify that the public key in keydata matches the provided pubkey

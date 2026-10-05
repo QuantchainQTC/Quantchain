@@ -105,7 +105,11 @@ bool ImportKeysDialog::importKey()
     }
 
     CPubKey pubkey = key.GetPubKey();
-    assert(key.VerifyPubKey(pubkey));
+    if (!key.VerifyPubKey(pubkey)) {
+        vchSecret.SetString("");
+        ui->privateKeyImportTextMessage->setText(tr("Invalid private key; please check and try again!"));
+        return false;
+    }
     CKeyID vchAddress = pubkey.GetID();
 
     pwalletMain->MarkDirty();

@@ -139,7 +139,8 @@ UniValue importprivkey(const JSONRPCRequest& request)
     if (!key.IsValid()) throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Private key outside allowed range");
 
     CPubKey pubkey = key.GetPubKey();
-    assert(key.VerifyPubKey(pubkey));
+    if (!key.VerifyPubKey(pubkey))
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Private key inconsistent with its public key");
     CKeyID vchAddress = pubkey.GetID();
     {
         pwalletMain->MarkDirty();
@@ -505,7 +506,8 @@ UniValue importwallet(const JSONRPCRequest& request)
         if (!key.IsValid())
             continue;
         CPubKey pubkey = key.GetPubKey();
-        assert(key.VerifyPubKey(pubkey));
+        if (!key.VerifyPubKey(pubkey))
+            continue;
         CKeyID keyid = pubkey.GetID();
         if (pwalletMain->HaveKey(keyid)) {
             LogPrintf("Skipping import of %s (key already present)\n", CBitcoinAddress(keyid).ToString());
@@ -848,7 +850,8 @@ UniValue ProcessImport(const UniValue& data, const int64_t timestamp)
                     }
 
                     CPubKey pubkey = key.GetPubKey();
-                    assert(key.VerifyPubKey(pubkey));
+                    if (!key.VerifyPubKey(pubkey))
+                        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Private key inconsistent with its public key");
 
                     CKeyID vchAddress = pubkey.GetID();
                     pwalletMain->MarkDirty();
@@ -956,7 +959,8 @@ UniValue ProcessImport(const UniValue& data, const int64_t timestamp)
                 }
 
                 CPubKey pubKey = key.GetPubKey();
-                assert(key.VerifyPubKey(pubKey));
+                if (!key.VerifyPubKey(pubKey))
+                    throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Private key inconsistent with its public key");
 
                 CBitcoinAddress pubKeyAddress = CBitcoinAddress(pubKey.GetID());
 
