@@ -210,6 +210,18 @@ jobs:
               exit 1
             fi
           done
+          # libsodium.a defines randombytes too, and the static link keeps
+          # whichever definition it loads first. The daemon must keep the
+          # node's own (src/pat/randombytes.cpp), which ML-DSA key generation
+          # and signing call and which calls GetStrongRandBytes. Read the
+          # function's instructions up to the next symbol's address.
+          read -r _ end < <(nm -n src/soqucoind | awk '$3 == "_randombytes" {s = $1; next} s != "" && $1 != s {print s, $1; exit}')
+          if ! otool -tV -p _randombytes src/soqucoind \
+              | awk -v end="$end" '$1 ~ /^[0-9a-f]+$/ && $1 >= end {exit} {print}' \
+              | grep -q 'GetStrongRandBytes'; then
+            echo "soqucoind's randombytes does not call GetStrongRandBytes" >&2
+            exit 1
+          fi
 
       - name: Package
         run: |
