@@ -4,7 +4,12 @@
 > **Algorithm**: Scrypt (compatible with LTC/DOGE infrastructure)  
 > **AuxPoW**: Yes — merge-mining with Litecoin, Dogecoin, and other Scrypt chains  
 > **Signatures**: Dilithium ML-DSA-44 (quantum-safe) — transparent to pool operators  
-> **Last updated**: April 2026
+> **Last updated**: October 2026
+
+> **Status**: SOQUPOOL is the only supported way to mine SOQ at mainnet launch,
+> and integrations with other pools are not supported yet. Support for other
+> pools and for solo mining will be announced when it is ready. This guide is
+> kept as a technical reference.
 
 ---
 
@@ -96,8 +101,8 @@ maxconnections=64
 maxmempool=512
 
 # Enable ZMQ for block notifications (optional, recommended)
-zmqpubhashblock=tcp://127.0.0.1:28332
-zmqpubrawtx=tcp://127.0.0.1:28332
+zmqpubhashblock=tcp://127.0.0.1:28334
+zmqpubrawtx=tcp://127.0.0.1:28334
 ```
 
 ---
@@ -153,13 +158,14 @@ soqucoin-cli createauxblock ssq1p23ssp9dsfcxzn33msmfzsk723rg24h9j8lrdn4qtaezcztj
 # Response:
 # {
 #   "hash": "...",
-#   "chainid": 98,
+#   "chainid": 21329,
 #   "previousblockhash": "...",
 #   "coinbasevalue": 10000000000000,
 #   "bits": "...",
 #   "height": 126,
-#   "_target": "..."
+#   "target": "..."
 # }
+# (With -rpcnamecoinapi the last field is named "_target".)
 
 # 2. Embed the aux hash in parent chain coinbase (standard AuxPoW protocol)
 # 3. When parent block found, submit the AuxPoW:
@@ -232,14 +238,14 @@ normal. SegWit witness discount (4:1) applies, so effective weight impact is
 ~600 WU per signature.
 
 **Q: Can I merge-mine SOQ with my existing LTC pool?**
-A: Yes. Use `createauxblock` / `submitauxblock` exactly as you would for any
-AuxPoW chain. SOQ uses the same AuxPoW format as Dogecoin.
+A: Integrations with other pools are not supported at mainnet launch (see the
+status note at the top). On the protocol side, SOQ uses the same AuxPoW format
+as Dogecoin, through `createauxblock` / `submitauxblock`.
 
 ---
 
 ## Contact
 
-For pool integration support:
-- **GitHub**: [soqucoin/soqucoin](https://github.com/soqucoin/soqucoin)
-- **Email**: pool-support@soqucoin.com
-- **Discord**: [Soqucoin Community](https://discord.gg/soqucoin)
+Support for pool integrations will be announced when it is ready. Bugs in the
+node's mining RPCs can be reported as
+[GitHub issues](https://github.com/soqucoin/soqucoin/issues).

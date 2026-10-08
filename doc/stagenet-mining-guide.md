@@ -156,8 +156,12 @@ soqucoin-cli -stagenet getpeerinfo
 
 ### Solo Mining (without pool)
 
-If you prefer to mine directly to your node (no pool), use the bundled
-**soq-solo-miner** stratum proxy in `contrib/solo-miner/`:
+Solo mining here is for stagenet testing. SOQUPOOL is the only supported way
+to mine SOQ at mainnet launch. Support for other pools and for solo mining
+will be announced when it is ready.
+
+To mine stagenet directly to your node (no pool), build the
+**soq-solo-miner** stratum proxy in `contrib/solo-miner/` (Go 1.25+):
 
 ```bash
 # 1. Configure the solo miner
@@ -165,9 +169,9 @@ cd contrib/solo-miner
 cp config.example.json config.json
 # Edit config.json: set rpc_password and reward_to address
 
-# 2. Start the solo miner
-./soq-solo-miner-macos-arm64 config.json   # macOS
-./soq-solo-miner-linux-x64 config.json     # Linux
+# 2. Build and start the solo miner
+go build -o soq-solo-miner .
+./soq-solo-miner config.json
 
 # 3. Point your ASIC at stratum+tcp://localhost:3333
 ```
