@@ -161,7 +161,7 @@ supported way to mine SOQ at launch, and support for solo mining will be
 announced when it is ready.
 
 To mine stagenet directly to your node (no pool), build the
-**soq-solo-miner** stratum proxy in `contrib/solo-miner/` (Go 1.23+):
+**soq-solo-miner** stratum proxy in `contrib/solo-miner/` (Go 1.25+):
 
 ```bash
 # 1. Configure the solo miner

@@ -67,20 +67,11 @@ Soqucoin uses the **Scrypt** proof-of-work algorithm with:
 
 ## Is there a mining pool?
 
-**Current status (pre-mainnet):**
+Yes. [SOQUPOOL](https://soqupool.com) is the only supported way to mine SOQ at
+mainnet launch. Support for other pools and for solo mining will be announced
+when it is ready.
 
-- **Engineering Testnet**: Stratum bridge available for testing with any Scrypt miner
-- **Testnet**: Running Braiins pool software internally
-- **Public pools**: No third-party pools yet (launching with mainnet)
-
-**How to mine on Engineering Testnet:**
-
-Visit https://soqu.org/testnet.html for current connection details and miner setup instructions.
-
-**Mainnet plans:**
-- Open-source pool software available at launch
-- Community can run independent pools
-- AuxPoW (merged mining with LTC/DOGE) supported from genesis
+SOQUPOOL merge-mines SOQ with LTC and DOGE. AuxPoW is active from genesis.
 
 ## Address Formats
 

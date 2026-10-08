@@ -101,8 +101,8 @@ maxconnections=64
 maxmempool=512
 
 # Enable ZMQ for block notifications (optional, recommended)
-zmqpubhashblock=tcp://127.0.0.1:28332
-zmqpubrawtx=tcp://127.0.0.1:28332
+zmqpubhashblock=tcp://127.0.0.1:28334
+zmqpubrawtx=tcp://127.0.0.1:28334
 ```
 
 ---
@@ -158,7 +158,7 @@ soqucoin-cli createauxblock ssq1p23ssp9dsfcxzn33msmfzsk723rg24h9j8lrdn4qtaezcztj
 # Response:
 # {
 #   "hash": "...",
-#   "chainid": 98,
+#   "chainid": 21329,
 #   "previousblockhash": "...",
 #   "coinbasevalue": 10000000000000,
 #   "bits": "...",
