@@ -110,13 +110,14 @@ Creates a new block template for merged mining.
   "coinbasevalue": 10000000000000,
   "bits": "1e0fffff",
   "height": 1213,
-  "_target": "00000fffff..."
+  "target": "00000fffff..."
 }
 ```
 
 **Notes**:
 - Chain ID `21329` = `0x5351` (hex) = "SQ"
 - Pool software must embed this in parent chain coinbase
+- With `-rpcnamecoinapi`, the target field is named `_target`
 
 ### `getauxblock [hash] [auxpow]`
 

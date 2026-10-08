@@ -163,8 +163,9 @@ soqucoin-cli createauxblock ssq1p23ssp9dsfcxzn33msmfzsk723rg24h9j8lrdn4qtaezcztj
 #   "coinbasevalue": 10000000000000,
 #   "bits": "...",
 #   "height": 126,
-#   "_target": "..."
+#   "target": "..."
 # }
+# (With -rpcnamecoinapi the last field is named "_target".)
 
 # 2. Embed the aux hash in parent chain coinbase (standard AuxPoW protocol)
 # 3. When parent block found, submit the AuxPoW:

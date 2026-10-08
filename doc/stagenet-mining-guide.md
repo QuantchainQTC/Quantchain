@@ -156,9 +156,9 @@ soqucoin-cli -stagenet getpeerinfo
 
 ### Solo Mining (without pool)
 
-Solo mining here is for stagenet testing. On mainnet, SOQUPOOL is the only
-supported way to mine SOQ at launch, and support for solo mining will be
-announced when it is ready.
+Solo mining here is for stagenet testing. SOQUPOOL is the only supported way
+to mine SOQ at mainnet launch. Support for other pools and for solo mining
+will be announced when it is ready.
 
 To mine stagenet directly to your node (no pool), build the
 **soq-solo-miner** stratum proxy in `contrib/solo-miner/` (Go 1.25+):
