@@ -191,22 +191,9 @@ make install  # optional
 ./src/soqucoind -regtest -daemon
 ```
 
-### ⛏️ Solo Mining
+### ⛏️ Mining
 
-The **SOQ Solo Miner** is a lightweight stratum proxy included in `contrib/solo-miner/`. Mine blocks directly to your wallet, zero pool fees.
-
-```bash
-# 1. Configure with your node RPC and wallet address
-cd contrib/solo-miner
-cp config.example.json config.json && nano config.json
-
-# 2. Run it
-./soq-solo-miner config.json
-
-# 3. Point your ASIC/GPU at stratum+tcp://localhost:3333
-```
-
-📖 [Full Solo Mining Guide](contrib/solo-miner/README.md)
+SOQUPOOL is the only supported way to mine SOQ at mainnet launch. Support for other pools and for solo mining will be announced when it is ready. Connection details are at [soqupool.com](https://soqupool.com).
 
 ### Network Ports
 
@@ -226,7 +213,7 @@ cp config.example.json config.json && nano config.json
 |----------|-------------|
 | [INSTALL.md](INSTALL.md) | Build instructions for all platforms |
 | [doc/stagenet-mining-guide.md](doc/stagenet-mining-guide.md) | Stagenet mining & node setup |
-| [contrib/solo-miner/README.md](contrib/solo-miner/README.md) | Solo mining stratum proxy |
+| [contrib/solo-miner/README.md](contrib/solo-miner/README.md) | Solo mining stratum proxy for stagenet and development; not supported on mainnet at launch |
 | [doc/specifications/pat-specification.md](doc/specifications/pat-specification.md) | PAT wire format specification |
 | [Whitepaper](https://soqu.org/whitepaper/soqucoin_whitepaper.pdf) | Technical specification |
 

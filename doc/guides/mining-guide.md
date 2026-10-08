@@ -4,6 +4,9 @@
 > **Network**: Testnet3 (Mainnet Q2 2026)
 > **Consensus**: Scrypt PoW + AuxPoW Merged Mining
 
+> **Status**: SOQUPOOL is the only supported way to mine SOQ at mainnet launch.
+> Support for other pools and for solo mining will be announced when it is ready.
+
 ---
 
 ## Overview
