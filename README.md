@@ -9,8 +9,8 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/TheNoeticOrder/Quantchain/actions/workflows/ci.yml"><img src="https://github.com/TheNoeticOrder/Quantchain/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI"></a>
-  <a href="https://github.com/TheNoeticOrder/Quantchain/blob/main/COPYING"><img src="https://img.shields.io/badge/license-MIT-blue" alt="License"></a>
+  <a href="https://github.com/TheQuantchainQTC/Quantchain/actions/workflows/ci.yml"><img src="https://github.com/TheQuantchainQTC/Quantchain/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI"></a>
+  <a href="https://github.com/TheQuantchainQTC/Quantchain/blob/main/COPYING"><img src="https://img.shields.io/badge/license-MIT-blue" alt="License"></a>
   <a href="https://QTCu.org"><img src="https://img.shields.io/badge/website-QTCu.org-purple" alt="Website"></a>
 </p>
 
@@ -168,7 +168,7 @@ Trust Model: Full cryptographic verification with witness data
 ### Build from Source
 
 ```bash
-git clone https://github.com/TheNoeticOrder/Quantchain.git
+git clone https://github.com/TheQuantchainQTC/Quantchain.git
 cd Quantchain
 ./autogen.sh
 ./configure
@@ -271,8 +271,8 @@ Quantchain Core is in **pre-genesis final validation**. The consensus stack has 
 
 **How to contribute now:**
 
-1. **Report bugs** — Open a [GitHub Issue](https://github.com/TheNoeticOrder/Quantchain/issues)
-2. **Discuss features** — Join [GitHub Discussions](https://github.com/TheNoeticOrder/Quantchain/discussions)
+1. **Report bugs** — Open a [GitHub Issue](https://github.com/TheQuantchainQTC/Quantchain/issues)
+2. **Discuss features** — Join [GitHub Discussions](https://github.com/TheQuantchainQTC/Quantchain/discussions)
 3. **Share test data** — Regtest blocks, fuzz corpora, ASIC screenshots
 
 > Pull requests will be enabled immediately after genesis. Contributors who help stress-test the chain will be credited in the launch paper.
