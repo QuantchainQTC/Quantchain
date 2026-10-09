@@ -10,33 +10,33 @@
 ### Build and Run Tests
 
 ```bash
-cd /path/to/soqucoin-build
+cd /path/to/QTC-build
 
 # Build audit image (includes tests)
-docker build -f docker/Dockerfile.audit --target builder -t soqucoin-audit .
+docker build -f docker/Dockerfile.audit --target builder -t QTC-audit .
 
 # Build and run tests automatically (tests run during build)
-docker build -f docker/Dockerfile.audit --target builder -t soqucoin-test .
+docker build -f docker/Dockerfile.audit --target builder -t QTC-test .
 ```
 
 ### Run Benchmarks
 
 ```bash
 # Build benchmark image
-docker build -f docker/Dockerfile.audit --target benchmark -t soqucoin-bench .
+docker build -f docker/Dockerfile.audit --target benchmark -t QTC-bench .
 
 # Run benchmarks (outputs CSV to current directory)
-docker run --rm -v $(pwd):/out soqucoin-bench
+docker run --rm -v $(pwd):/out QTC-bench
 ```
 
 ### Build Runtime (Production)
 
 ```bash
 # Build minimal runtime image
-docker build -f docker/Dockerfile.audit --target runtime -t soqucoin-runtime .
+docker build -f docker/Dockerfile.audit --target runtime -t QTC-runtime .
 
 # Run testnet node
-docker run -d -p 18333:18333 --name soqucoind soqucoin-runtime soqucoind -testnet -printtoconsole
+docker run -d -p 18333:18333 --name QTCd QTC-runtime QTCd -testnet -printtoconsole
 ```
 
 ---
@@ -55,17 +55,17 @@ docker run -d -p 18333:18333 --name soqucoind soqucoin-runtime soqucoind -testne
 
 ```bash
 # 1. Build with tests (runs unit tests during build)
-docker build -f docker/Dockerfile.audit --target builder -t soqucoin-audit .
+docker build -f docker/Dockerfile.audit --target builder -t QTC-audit .
 
 # 2. Run benchmarks
-docker build -f docker/Dockerfile.audit --target benchmark -t soqucoin-bench .
-docker run --rm -v $(pwd):/out soqucoin-bench
+docker build -f docker/Dockerfile.audit --target benchmark -t QTC-bench .
+docker run --rm -v $(pwd):/out QTC-bench
 
 # 3. Verify binary hashes (reproducibility check)
-docker run --rm soqucoin-audit sha256sum /soqucoin/src/soqucoind
+docker run --rm QTC-audit sha256sum /QTC/src/QTCd
 
 # 4. Run specific benchmark
-docker run --rm soqucoin-bench bench_bitcoin --filter='Dilithium*'
+docker run --rm QTC-bench bench_bitcoin --filter='Dilithium*'
 ```
 
 ---
@@ -105,7 +105,7 @@ The audit Dockerfile uses the following configure flags:
 | `--enable-bench` | Compile benchmarks |
 | `-O2 -g` | Optimization + debug symbols |
 
-> **Note**: As of January 2026, Soqucoin requires **C++17** (set in `src/Makefile.am`)
+> **Note**: As of January 2026, QTC requires **C++17** (set in `src/Makefile.am`)
 > for the PQ wallet library's use of `std::optional` and other modern features.
 
 ---
@@ -120,7 +120,7 @@ docker-compose up -d
 ```
 
 This starts:
-- `soqucoind`: Testnet node
+- `QTCd`: Testnet node
 - `stratum_bridge`: Mining stratum proxy
 
 ---
@@ -132,7 +132,7 @@ This starts:
 Use Docker's `--platform` flag:
 
 ```bash
-docker build --platform linux/amd64 -f docker/Dockerfile.audit --target builder -t soqucoin-audit .
+docker build --platform linux/amd64 -f docker/Dockerfile.audit --target builder -t QTC-audit .
 ```
 
 ### Tests fail
@@ -140,10 +140,10 @@ docker build --platform linux/amd64 -f docker/Dockerfile.audit --target builder 
 Check the test log:
 
 ```bash
-docker run --rm soqucoin-audit cat /soqucoin/src/test/test_bitcoin.log
+docker run --rm QTC-audit cat /QTC/src/test/test_bitcoin.log
 ```
 
 ---
 
 *Prepared for security auditors*
-*Soqucoin Development Team — January 2026*
+*QTC Development Team — January 2026*
