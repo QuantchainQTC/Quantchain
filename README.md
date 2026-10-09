@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="doc/Quantchain-label-logo.png" alt="Quantchain" width="280"/>
+  <img width="250" height="250" alt="image" src="https://github.com/user-attachments/assets/b9f72b97-e969-4963-8c28-3a066773dc9e" />
 </p>
 
 <h1 align="center">Quantchain™ Core</h1>
@@ -10,7 +10,6 @@
 
 <p align="center">
   <a href="https://github.com/TheNoeticOrder/Quantchain/actions/workflows/ci.yml"><img src="https://github.com/TheNoeticOrder/Quantchain/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI"></a>
-  <a href="https://github.com/TheNoeticOrder/Quantchain/releases/latest"><img src="https://img.shields.io/github/v/release/Quantchain/Quantchain?include_prereleases&label=release" alt="Release"></a>
   <a href="https://github.com/TheNoeticOrder/Quantchain/blob/main/COPYING"><img src="https://img.shields.io/badge/license-MIT-blue" alt="License"></a>
   <a href="https://soqu.org"><img src="https://img.shields.io/badge/website-soqu.org-purple" alt="Website"></a>
 </p>
