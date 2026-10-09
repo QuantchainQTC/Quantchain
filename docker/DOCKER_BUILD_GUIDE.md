@@ -1,4 +1,4 @@
-# Docker Reproducible Build Guide
+# Docker Reproducible Build Guide 
 
 > **Version**: 1.0 | **Updated**: January 2026
 > **Purpose**: Auditor-friendly reproducible build instructions
