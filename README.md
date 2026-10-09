@@ -44,8 +44,8 @@ Soqucoin is a Scrypt-based proof-of-work cryptocurrency that removes ECDSA from 
 | Lattice-BP++ consensus wired (superseded by SoquObscura; not activated) | ✅ Complete | Apr 2026 |
 | SoquObscura CT (LNP22/LaBRADOR) | ◻ Research | Not scheduled on any network |
 | Release v2.5.0 (stagenet) | ✅ Complete | Sep 2026 |
-| pSOQ to SOQ migration window | 🔄 Scheduled | Sep 29 – Oct 5, 2026 |
-| Mainnet block 1 | 🔄 Scheduled | Oct 8, 2026 |
+| pSOQ to SOQ migration window | ✅ Closed | Sep 29 – Oct 5, 2026 |
+| Mainnet block 1 | 🔄 Scheduled | Oct 13, 2026, 15:00 UTC |
 
 ---
 
