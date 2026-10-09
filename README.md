@@ -5,7 +5,7 @@
 <h1 align="center">Soqucoin™ Core</h1>
 
 <p align="center">
-  <strong>A post-quantum Layer 1 with native ML-DSA-44 signatures. Running on stagenet; mainnet block 1 is scheduled for 8 October 2026.</strong>
+  <strong>A post-quantum Layer 1 with native ML-DSA-44 signatures. Running on stagenet; mainnet block 1 is scheduled for 13 October 2026 at 15:00 UTC.</strong>
 </p>
 
 <p align="center">
