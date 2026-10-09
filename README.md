@@ -11,7 +11,7 @@
 <p align="center">
   <a href="https://github.com/TheNoeticOrder/Quantchain/actions/workflows/ci.yml"><img src="https://github.com/TheNoeticOrder/Quantchain/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI"></a>
   <a href="https://github.com/TheNoeticOrder/Quantchain/blob/main/COPYING"><img src="https://img.shields.io/badge/license-MIT-blue" alt="License"></a>
-  <a href="https://soqu.org"><img src="https://img.shields.io/badge/website-soqu.org-purple" alt="Website"></a>
+  <a href="https://QTCu.org"><img src="https://img.shields.io/badge/website-QTCu.org-purple" alt="Website"></a>
 </p>
 
 <p align="center">
@@ -27,7 +27,7 @@
 
 ## About
 
-Quantchain is a Scrypt-based proof-of-work cryptocurrency that removes ECDSA from the transaction authorization path and uses **NIST-standardized ML-DSA-44 (Dilithium)** signatures. It uses **PAT** (Practical Attestation Technique) for batch signature attestation. **SoquObscura**, the post-quantum confidential transaction system built on the LNP22/LaZer proof system with LaBRADOR block-level aggregation, is designed and partly in-tree but is **not activated on any network**. See the status note in the Architecture section before citing any of its figures.
+Quantchain is a Scrypt-based proof-of-work cryptocurrency that removes ECDSA from the transaction authorization path and uses **NIST-standardized ML-DSA-44 (Dilithium)** signatures. It uses **PAT** (Practical Attestation Technique) for batch signature attestation. **QTCuObscura**, the post-quantum confidential transaction system built on the LNP22/LaZer proof system with LaBRADOR block-level aggregation, is designed and partly in-tree but is **not activated on any network**. See the status note in the Architecture section before citing any of its figures.
 
 > **Why does this matter?** Quantum computers will eventually break ECDSA. Quantchain makes all user transaction signatures quantum-resistant without requiring a soft-fork migration from an ECDSA-based design.
 
@@ -39,10 +39,10 @@ Quantchain is a Scrypt-based proof-of-work cryptocurrency that removes ECDSA fro
 | ASIC validation (L7) | ✅ Complete | Nov 24, 2025 |
 | Testnet3 launch | ✅ Complete | Dec 2025 |
 | Stability testing (1200+ blocks) | ✅ Complete | Jan 2, 2026 |
-| Lattice-BP++ consensus wired (superseded by SoquObscura; not activated) | ✅ Complete | Apr 2026 |
-| SoquObscura CT (LNP22/LaBRADOR) | ◻ Research | Not scheduled on any network |
+| Lattice-BP++ consensus wired (superseded by QTCuObscura; not activated) | ✅ Complete | Apr 2026 |
+| QTCuObscura CT (LNP22/LaBRADOR) | ◻ Research | Not scheduled on any network |
 | Release v2.5.0 (stagenet) | ✅ Complete | Sep 2026 |
-| pSOQ to SOQ migration window | ✅ Closed | Sep 29 – Oct 5, 2026 |
+| pQTC to QTC migration window | ✅ Closed | Sep 29 – Oct 5, 2026 |
 | Mainnet block 1 | 🔄 Scheduled | Oct 13, 2026, 15:00 UTC |
 
 ---
@@ -58,9 +58,9 @@ Quantchain is a Scrypt-based proof-of-work cryptocurrency that removes ECDSA fro
 | **Batch Verification** | PAT (Merkle-aggregated) | Constant-size proofs |
 | **Proof-of-Work** | Scrypt (N=1024, r=1, p=1) | Grover: quadratic speedup only |
 
-### Confidential Transactions: SoquObscura (SOQ-P010)
+### Confidential Transactions: QTCuObscura (QTC-P010)
 
-> **STATUS: NOT ACTIVE ON ANY NETWORK.** `DEPLOYMENT_SOQUOBSCURA` is
+> **STATUS: NOT ACTIVE ON ANY NETWORK.** `DEPLOYMENT_QTCUOBSCURA` is
 > `NOT_SCHEDULED` on mainnet, testnet, regtest and stagenet, and its BIP9 entry
 > is configured to never activate. The table below describes the **design**, not
 > behaviour you can observe on a running node. The reference sizes and timings
@@ -77,7 +77,7 @@ Quantchain is a Scrypt-based proof-of-work cryptocurrency that removes ECDSA fro
 | **Ref Tx Size** | ~146 KB (2 range + 1 balance + 4 VE) | — |
 | **Ref Verify Time** | 316 ms (single-thread, Xeon 8358, AVX-512) | — |
 
-> **Note:** SoquObscura supersedes the earlier Lattice-BP++ system (SOQ-P002). It uses ABDLOP commitments with LNP22/LaZer proofs and LaBRADOR block-level aggregation. The exactness architecture confines approximate proof slack (ψ) to non-consensus-critical margins via compile-time static asserts. Patent pending (SOQ-P010).
+> **Note:** QTCuObscura supersedes the earlier Lattice-BP++ system (QTC-P002). It uses ABDLOP commitments with LNP22/LaZer proofs and LaBRADOR block-level aggregation. The exactness architecture confines approximate proof slack (ψ) to non-consensus-critical margins via compile-time static asserts. Patent pending (QTC-P010).
 
 ### Performance Benchmarks
 
@@ -88,10 +88,10 @@ Quantchain is a Scrypt-based proof-of-work cryptocurrency that removes ECDSA fro
 │ Dilithium Sign (M4)             │ 0.177 ms       │ 2,420 bytes │
 │ Dilithium Verify (M4)           │ 0.041 ms       │ —           │
 │ PAT root over 1000 sigs (M4)    │ 0.67 ms        │ 100 bytes   │
-│ SoquObscura Range Prove (Xeon)  │ 61.8 ms        │ 17,991 B    │
-│ SoquObscura Range Verify (Xeon) │ 26.8 ms        │ —           │
-│ SoquObscura Balance Verify      │ 34.9 ms        │ 20,233 B    │
-│ SoquObscura VE Verify           │ 56.9 ms        │ 22,426 B    │
+│ QTCuObscura Range Prove (Xeon)  │ 61.8 ms        │ 17,991 B    │
+│ QTCuObscura Range Verify (Xeon) │ 26.8 ms        │ —           │
+│ QTCuObscura Balance Verify      │ 34.9 ms        │ 20,233 B    │
+│ QTCuObscura VE Verify           │ 56.9 ms        │ 22,426 B    │
 │ Full Ref Tx Verify (Xeon 8358)  │ 316 ms         │ ~146 KB     │
 └─────────────────────────────────┴────────────────┴─────────────┘
 ```
@@ -191,7 +191,7 @@ make install  # optional
 
 ### ⛏️ Mining
 
-SOQUPOOL is the only supported way to mine SOQ at mainnet launch. Support for other pools and for solo mining will be announced when it is ready. Connection details are at [soqupool.com](https://soqupool.com).
+QTCPOOL is the only supported way to mine QTC at mainnet launch. Support for other pools and for solo mining will be announced when it is ready. Connection details are at live on 13 October.
 
 ### Network Ports
 
@@ -213,7 +213,7 @@ SOQUPOOL is the only supported way to mine SOQ at mainnet launch. Support for ot
 | [doc/stagenet-mining-guide.md](doc/stagenet-mining-guide.md) | Stagenet mining & node setup |
 | [contrib/solo-miner/README.md](contrib/solo-miner/README.md) | Solo mining stratum proxy for stagenet and development; not supported on mainnet at launch |
 | [doc/specifications/pat-specification.md](doc/specifications/pat-specification.md) | PAT wire format specification |
-| [Whitepaper](https://soqu.org/whitepaper/Quantchain_whitepaper.pdf) | Technical specification |
+| [Whitepaper](https://QTCu.org/whitepaper/Quantchain_whitepaper.pdf) | Technical specification |
 
 ---
 
@@ -224,7 +224,7 @@ SOQUPOOL is the only supported way to mine SOQ at mainnet launch. Support for ot
 | Opcode | Hex | Witness | Purpose |
 |--------|-----|---------|----------|
 | `OP_CHECKPATAGG` | 0xfd | v2 | PAT Merkle commitment verification |
-| `OP_SOQUOBSCURA_RANGEPROOF` | 0xfa | v4 | SoquObscura range proof verification (deployment `NOT_SCHEDULED`) |
+| `OP_QTCUOBSCURA_RANGEPROOF` | 0xfa | v4 | QTCuObscura range proof verification (deployment `NOT_SCHEDULED`) |
 
 ### Prover Implementation Status
 
@@ -232,21 +232,21 @@ SOQUPOOL is the only supported way to mine SOQ at mainnet launch. Support for ot
 |-----------|----------|--------|
 | **PAT Prover** | `src/crypto/pat/logarithmic.cpp` | ✅ In-tree |
 | **PAT Verifier** | `src/crypto/pat/logarithmic.cpp` | ✅ In-tree |
-| **SoquObscura disclosure + issuer registry** | `src/consensus/soquobscura/` | ◻ Scaffolding — headers only, deliberately not in the build |
-| **SoquObscura Verifier** | _(planned; no path yet)_ | ◻ Not started — see note |
-| **SoquObscura Prover** | _(planned; no path yet)_ | ◻ Not started |
+| **QTCuObscura disclosure + issuer registry** | `src/consensus/QTCuobscura/` | ◻ Scaffolding — headers only, deliberately not in the build |
+| **QTCuObscura Verifier** | _(planned; no path yet)_ | ◻ Not started — see note |
+| **QTCuObscura Prover** | _(planned; no path yet)_ | ◻ Not started |
 | **LaBRADOR Aggregator** | _(planned; no path yet)_ | ◻ Not started |
 | **PQ Wallet Library** | `src/wallet/pqwallet/` | ✅ In-tree |
 
-Note: Lattice-BP++ (SOQ-P002) is superseded by SoquObscura (SOQ-P010). LatticeFold+ batch verification (`OP_CHECKFOLDPROOF`, witness v3) is deprecated. The opcode remains in the tree behind a deployment that does not activate on any network. It was reviewed in the April 2026 external extension audit. Its successor for confidential assets and succinct proofs is SoquObscura, a lattice-based confidential-asset system in research, whose deployment is not scheduled on any network and which is subject to the second external audit phase before any activation.
+Note: Lattice-BP++ (QTC-P002) is superseded by QTCuObscura (QTC-P010). LatticeFold+ batch verification (`OP_CHECKFOLDPROOF`, witness v3) is deprecated. The opcode remains in the tree behind a deployment that does not activate on any network. It was reviewed in the April 2026 external extension audit. Its successor for confidential assets and succinct proofs is QTCuObscura, a lattice-based confidential-asset system in research, whose deployment is not scheduled on any network and which is subject to the second external audit phase before any activation.
 
 > ⛔ **Status note, so this table is not read as a claim of what exists.** Rows marked
 > ◻ have **no code in this tree**. Earlier revisions of this table cited concrete paths
-> (`src/crypto/soquobscura/`, `src/crypto/labrador/`) that have never existed; they are
+> (`src/crypto/QTCuobscura/`, `src/crypto/labrador/`) that have never existed; they are
 > now marked as planned. Confidential outputs are **not active on any network** —
-> `DEPLOYMENT_SOQUOBSCURA` is `NOT_SCHEDULED` on mainnet, testnet, regtest and stagenet
+> `DEPLOYMENT_QTCUOBSCURA` is `NOT_SCHEDULED` on mainnet, testnet, regtest and stagenet
 > — because the currently-shipped range verifier accepts an all-zero witness. See
-> `src/test/soquobscura_degenerate_witness_tests.cpp`, whose three failing tests are
+> `src/test/QTCuobscura_degenerate_witness_tests.cpp`, whose three failing tests are
 > committed red on purpose as the regression gate (zero witness, wire-reachable zero
 > witness, and scaled witness; the scaled case staying red confirms the break is
 > homogeneity-wide, so no "reject all zeros" patch can legitimately turn this battery
@@ -291,15 +291,15 @@ This project follows [Bitcoin Core contribution guidelines](CONTRIBUTING.md):
 
 | Parameter | Value |
 |-----------|-------|
-| **Ticker** | SOQ |
+| **Ticker** | QTC |
 | **Algorithm** | Scrypt |
 | **Block Time** | 1 minute |
-| **Initial Block Reward** | 100,000 SOQ |
+| **Initial Block Reward** | 100,000 QTC |
 | **Halving Interval** | 250,000 blocks (~174 days) |
-| **Terminal Emission** | 2,500 SOQ perpetual (after block 1,000,000) |
+| **Terminal Emission** | 2,500 QTC perpetual (after block 1,000,000) |
 | **Supply Model** | Inflationary with declining rate |
 
-Block 1 of mainnet carries the result of the one-time pSOQ to SOQ migration window, open 29 September to 5 October 2026. The steps publish on 28 September at [Quantchain.org/migration](https://Quantchain.org/migration).
+Block 1 of mainnet carries the result of the one-time pQTC to QTC migration window, open 29 September to 5 October 2026. The steps publish on 28 September at [Quantchain.org/migration](https://Quantchain.org/migration).
 
 ---
 
