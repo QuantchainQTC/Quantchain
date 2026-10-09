@@ -1,17 +1,17 @@
 <p align="center">
-  <img src="doc/soqucoin-label-logo.png" alt="Soqucoin" width="280"/>
+  <img src="doc/Quantchain-label-logo.png" alt="Quantchain" width="280"/>
 </p>
 
-<h1 align="center">Soqucoin™ Core</h1>
+<h1 align="center">Quantchain™ Core</h1>
 
 <p align="center">
   <strong>A post-quantum Layer 1 with native ML-DSA-44 signatures. Running on stagenet; mainnet block 1 is scheduled for 13 October 2026 at 15:00 UTC.</strong>
 </p>
 
 <p align="center">
-  <a href="https://github.com/soqucoin/soqucoin/actions/workflows/ci.yml"><img src="https://github.com/soqucoin/soqucoin/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI"></a>
-  <a href="https://github.com/soqucoin/soqucoin/releases/latest"><img src="https://img.shields.io/github/v/release/soqucoin/soqucoin?include_prereleases&label=release" alt="Release"></a>
-  <a href="https://github.com/soqucoin/soqucoin/blob/main/COPYING"><img src="https://img.shields.io/badge/license-MIT-blue" alt="License"></a>
+  <a href="https://github.com/TheNoeticOrder/Quantchain/actions/workflows/ci.yml"><img src="https://github.com/TheNoeticOrder/Quantchain/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI"></a>
+  <a href="https://github.com/TheNoeticOrder/Quantchain/releases/latest"><img src="https://img.shields.io/github/v/release/Quantchain/Quantchain?include_prereleases&label=release" alt="Release"></a>
+  <a href="https://github.com/TheNoeticOrder/Quantchain/blob/main/COPYING"><img src="https://img.shields.io/badge/license-MIT-blue" alt="License"></a>
   <a href="https://soqu.org"><img src="https://img.shields.io/badge/website-soqu.org-purple" alt="Website"></a>
 </p>
 
@@ -28,9 +28,9 @@
 
 ## About
 
-Soqucoin is a Scrypt-based proof-of-work cryptocurrency that removes ECDSA from the transaction authorization path and uses **NIST-standardized ML-DSA-44 (Dilithium)** signatures. It uses **PAT** (Practical Attestation Technique) for batch signature attestation. **SoquObscura**, the post-quantum confidential transaction system built on the LNP22/LaZer proof system with LaBRADOR block-level aggregation, is designed and partly in-tree but is **not activated on any network**. See the status note in the Architecture section before citing any of its figures.
+Quantchain is a Scrypt-based proof-of-work cryptocurrency that removes ECDSA from the transaction authorization path and uses **NIST-standardized ML-DSA-44 (Dilithium)** signatures. It uses **PAT** (Practical Attestation Technique) for batch signature attestation. **SoquObscura**, the post-quantum confidential transaction system built on the LNP22/LaZer proof system with LaBRADOR block-level aggregation, is designed and partly in-tree but is **not activated on any network**. See the status note in the Architecture section before citing any of its figures.
 
-> **Why does this matter?** Quantum computers will eventually break ECDSA. Soqucoin makes all user transaction signatures quantum-resistant without requiring a soft-fork migration from an ECDSA-based design.
+> **Why does this matter?** Quantum computers will eventually break ECDSA. Quantchain makes all user transaction signatures quantum-resistant without requiring a soft-fork migration from an ECDSA-based design.
 
 ### Current Status
 
@@ -40,7 +40,6 @@ Soqucoin is a Scrypt-based proof-of-work cryptocurrency that removes ECDSA from 
 | ASIC validation (L7) | ✅ Complete | Nov 24, 2025 |
 | Testnet3 launch | ✅ Complete | Dec 2025 |
 | Stability testing (1200+ blocks) | ✅ Complete | Jan 2, 2026 |
-| [Halborn security audit](https://www.halborn.com/case-studies/post/case-study-halborn-secures-soqucoin-the-first-native-post-quantum-scrypt-pow-blockchain) (30 findings) | ✅ Complete | Feb–Mar 2026 |
 | Lattice-BP++ consensus wired (superseded by SoquObscura; not activated) | ✅ Complete | Apr 2026 |
 | SoquObscura CT (LNP22/LaBRADOR) | ◻ Research | Not scheduled on any network |
 | Release v2.5.0 (stagenet) | ✅ Complete | Sep 2026 |
@@ -110,7 +109,7 @@ Validated on **Antminer L7** (9.5 GH/s):
 
 **Status**: ✅ Fully Implemented (v1.0) — November 2025
 
-Soqucoin implements PAT to commit a batch of Dilithium signatures to a Merkle root. This gives a constant-size on-chain commitment for batch validation; the signatures themselves remain in witness data.
+Quantchain implements PAT to commit a batch of Dilithium signatures to a Merkle root. This gives a constant-size on-chain commitment for batch validation; the signatures themselves remain in witness data.
 
 #### Implementation Details
 
@@ -170,8 +169,8 @@ Trust Model: Full cryptographic verification with witness data
 ### Build from Source
 
 ```bash
-git clone https://github.com/soqucoin/soqucoin.git
-cd soqucoin
+git clone https://github.com/TheNoeticOrder/Quantchain.git
+cd Quantchain
 ./autogen.sh
 ./configure
 make -j$(nproc)
@@ -182,13 +181,13 @@ make install  # optional
 
 ```bash
 # Stagenet (current active network)
-./src/soqucoind -stagenet -daemon -server -rpcuser=soqucoin -rpcpassword=YOUR_PASSWORD
+./src/Quantchaind -stagenet -daemon -server -rpcuser=Quantchain -rpcpassword=YOUR_PASSWORD
 
 # Mainnet (from block 1)
-./src/soqucoind -daemon -server -rpcuser=soqucoin -rpcpassword=YOUR_PASSWORD
+./src/Quantchaind -daemon -server -rpcuser=Quantchain -rpcpassword=YOUR_PASSWORD
 
 # Regtest (local development)
-./src/soqucoind -regtest -daemon
+./src/Quantchaind -regtest -daemon
 ```
 
 ### ⛏️ Mining
@@ -215,7 +214,7 @@ SOQUPOOL is the only supported way to mine SOQ at mainnet launch. Support for ot
 | [doc/stagenet-mining-guide.md](doc/stagenet-mining-guide.md) | Stagenet mining & node setup |
 | [contrib/solo-miner/README.md](contrib/solo-miner/README.md) | Solo mining stratum proxy for stagenet and development; not supported on mainnet at launch |
 | [doc/specifications/pat-specification.md](doc/specifications/pat-specification.md) | PAT wire format specification |
-| [Whitepaper](https://soqu.org/whitepaper/soqucoin_whitepaper.pdf) | Technical specification |
+| [Whitepaper](https://soqu.org/whitepaper/Quantchain_whitepaper.pdf) | Technical specification |
 
 ---
 
@@ -269,12 +268,12 @@ Note: Lattice-BP++ (SOQ-P002) is superseded by SoquObscura (SOQ-P010). LatticeFo
 
 ### Pre-Launch Policy
 
-Soqucoin Core is in **pre-genesis final validation**. The consensus stack has completed external security audit and is undergoing final pre-mainnet testing. The audit reports are published by Halborn: [blockchain node audit](https://www.halborn.com/audits/soqucoin/soqucoin-blockchain-node-a4f1f7), [architecture assessment](https://www.halborn.com/audits/soqucoin/blockchain-architecture-assessment---added-days-907771), and a [case study](https://www.halborn.com/case-studies/post/case-study-halborn-secures-soqucoin-the-first-native-post-quantum-scrypt-pow-blockchain).
+Quantchain Core is in **pre-genesis final validation**. The consensus stack has completed external security audit and is undergoing final pre-mainnet testing. The audit reports are published by Halborn: [blockchain node audit](https://www.halborn.com/audits/Quantchain/Quantchain-blockchain-node-a4f1f7), [architecture assessment](https://www.halborn.com/audits/Quantchain/blockchain-architecture-assessment---added-days-907771), and a [case study](https://www.halborn.com/case-studies/post/case-study-halborn-secures-Quantchain-the-first-native-post-quantum-scrypt-pow-blockchain).
 
 **How to contribute now:**
 
-1. **Report bugs** — Open a [GitHub Issue](https://github.com/soqucoin/soqucoin/issues)
-2. **Discuss features** — Join [GitHub Discussions](https://github.com/soqucoin/soqucoin/discussions)
+1. **Report bugs** — Open a [GitHub Issue](https://github.com/TheNoeticOrder/Quantchain/issues)
+2. **Discuss features** — Join [GitHub Discussions](https://github.com/TheNoeticOrder/Quantchain/discussions)
 3. **Share test data** — Regtest blocks, fuzz corpora, ASIC screenshots
 
 > Pull requests will be enabled immediately after genesis. Contributors who help stress-test the chain will be credited in the launch paper.
@@ -301,7 +300,7 @@ This project follows [Bitcoin Core contribution guidelines](CONTRIBUTING.md):
 | **Terminal Emission** | 2,500 SOQ perpetual (after block 1,000,000) |
 | **Supply Model** | Inflationary with declining rate |
 
-Block 1 of mainnet carries the result of the one-time pSOQ to SOQ migration window, open 29 September to 5 October 2026. The steps publish on 28 September at [soqucoin.org/migration](https://soqucoin.org/migration).
+Block 1 of mainnet carries the result of the one-time pSOQ to SOQ migration window, open 29 September to 5 October 2026. The steps publish on 28 September at [Quantchain.org/migration](https://Quantchain.org/migration).
 
 ---
 
@@ -315,10 +314,10 @@ For security vulnerabilities, please see [SECURITY.md](.github/SECURITY.md).
 
 ## License
 
-Soqucoin Core is released under the terms of the MIT license. See [COPYING](COPYING) for details.
+Quantchain Core is released under the terms of the MIT license. See [COPYING](COPYING) for details.
 
 ---
 
 <p align="center">
-  <sub>Built with 🔐 by the Soqucoin Core developers</sub>
+  <sub>Built with 🔐 by the Quantchain Core developers</sub>
 </p>
